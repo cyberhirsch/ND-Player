@@ -1,18 +1,20 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { usePlayerStore, useOfflineStore } from '../store/useStore';
-import { useEffect, useState } from 'react';
+import { usePlayerStore, useOfflineStore, RepeatMode } from '../store/useStore';
+import { useEffect, useRef, useState } from 'react';
 import { Audio } from 'expo-av';
 import { getStreamUrl, getCoverArtUrl } from '../api/navidrome';
-import { downloadTrack, deleteTrack } from '../utils/downloader';
 import { theme } from '../constants/theme';
+import TrackListModal from './TrackListModal';
 
 export default function PlayerBar() {
-    const { currentTrack, isPlaying, setPlaying, playNext, playPrev } = usePlayerStore();
-    const { downloadedTracks, addDownloadedTrack, removeDownloadedTrack } = useOfflineStore();
-    const [sound, setSound] = useState<Audio.Sound | null>(null);
-    const [downloading, setDownloading] = useState(false);
+    const { currentTrack, isPlaying, setPlaying, playNext, playPrev, repeatMode, cycleRepeat } = usePlayerStore();
+    const { downloadedTracks } = useOfflineStore();
+    const repeatColor = repeatMode === 'off' ? theme.colors.textSecondary : theme.colors.accent;
+    const soundRef = useRef<Audio.Sound | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
     const [coverUrl, setCoverUrl] = useState<string | null>(null);
+    const [showQueue, setShowQueue] = useState(false);
 
     useEffect(() => {
         if (currentTrack) {
@@ -23,109 +25,120 @@ export default function PlayerBar() {
 
     useEffect(() => {
         return () => {
-            if (sound) {
-                sound.unloadAsync();
-            }
+            soundRef.current?.unloadAsync();
         };
-    }, [sound]);
+    }, []);
 
     const loadCover = async () => {
-        if (currentTrack) {
+        if (!currentTrack) return;
+        if (currentTrack.localCoverUri) {
+            setCoverUrl(currentTrack.localCoverUri);
+        } else {
             const url = await getCoverArtUrl(currentTrack.coverArt);
             setCoverUrl(url);
         }
     };
 
     const loadSound = async () => {
-        if (sound) {
-            await sound.unloadAsync();
+        if (soundRef.current) {
+            await soundRef.current.unloadAsync();
+            soundRef.current = null;
         }
         if (!currentTrack) return;
 
+        setIsLoading(true);
         try {
             let uri = downloadedTracks[currentTrack.id];
             if (!uri) {
                 uri = await getStreamUrl(currentTrack.id);
             }
 
-            const { sound: newSound } = await Audio.Sound.createAsync(
+            const { sound } = await Audio.Sound.createAsync(
                 { uri },
-                { shouldPlay: isPlaying }
+                { shouldPlay: true }
             );
-            setSound(newSound);
+            soundRef.current = sound;
             setPlaying(true);
 
-            newSound.setOnPlaybackStatusUpdate((status) => {
-                if (status.isLoaded) {
-                    if (status.didJustFinish) {
-                        playNext();
-                    }
+            sound.setOnPlaybackStatusUpdate((status) => {
+                if (status.isLoaded && status.didJustFinish) {
+                    playNext();
                 }
             });
 
         } catch (e) {
             console.error('Failed to load sound', e);
+        } finally {
+            setIsLoading(false);
         }
     };
 
     const togglePlayPause = async () => {
-        if (!sound) return;
+        if (!soundRef.current) return;
         if (isPlaying) {
-            await sound.pauseAsync();
+            await soundRef.current.pauseAsync();
             setPlaying(false);
         } else {
-            await sound.playAsync();
+            await soundRef.current.playAsync();
             setPlaying(true);
-        }
-    };
-
-    const handleDownload = async () => {
-        if (!currentTrack) return;
-        if (downloadedTracks[currentTrack.id]) {
-            await deleteTrack(currentTrack.id);
-        } else {
-            setDownloading(true);
-            await downloadTrack(currentTrack.id);
-            setDownloading(false);
         }
     };
 
     if (!currentTrack) return null;
 
-    const isDownloaded = !!downloadedTracks[currentTrack.id];
-
     return (
+        <>
+        <TrackListModal
+            visible={showQueue}
+            onClose={() => setShowQueue(false)}
+            coverUrl={coverUrl}
+        />
         <View style={styles.container}>
             <View style={styles.leftContainer}>
-                {coverUrl && (
-                    <Image source={{ uri: coverUrl }} style={styles.cover} />
-                )}
-                <View style={styles.info}>
+                <TouchableOpacity onPress={() => setShowQueue(true)} activeOpacity={0.8}>
+                    {coverUrl ? (
+                        <Image
+                            source={{ uri: coverUrl }}
+                            style={styles.cover}
+                            onError={() => setCoverUrl(null)}
+                        />
+                    ) : (
+                        <View style={[styles.cover, styles.coverFallback]}>
+                            <Ionicons name="musical-note" size={28} color={theme.colors.textSecondary} />
+                        </View>
+                    )}
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.info} onPress={() => setShowQueue(true)} activeOpacity={0.7}>
                     <Text style={styles.title} numberOfLines={1}>{currentTrack.title}</Text>
                     <Text style={styles.artist} numberOfLines={1}>{currentTrack.artist}</Text>
-                </View>
+                </TouchableOpacity>
             </View>
 
             <View style={styles.controls}>
                 <TouchableOpacity onPress={playPrev}>
                     <Ionicons name="play-skip-back" size={24} color={theme.colors.textPrimary} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={togglePlayPause} style={styles.playButton}>
-                    <Ionicons name={isPlaying ? "pause" : "play"} size={32} color={theme.colors.background} />
+                <TouchableOpacity onPress={togglePlayPause} style={styles.playButton} disabled={isLoading}>
+                    {isLoading
+                        ? <ActivityIndicator size="small" color={theme.colors.background} />
+                        : <Ionicons name={isPlaying ? "pause" : "play"} size={32} color={theme.colors.background} />
+                    }
                 </TouchableOpacity>
                 <TouchableOpacity onPress={playNext}>
                     <Ionicons name="play-skip-forward" size={24} color={theme.colors.textPrimary} />
                 </TouchableOpacity>
             </View>
 
-            <TouchableOpacity onPress={handleDownload} disabled={downloading} style={styles.downloadBtn}>
-                <Ionicons
-                    name={isDownloaded ? "cloud-done" : "cloud-download-outline"}
-                    size={24}
-                    color={isDownloaded ? theme.colors.accent : theme.colors.textSecondary}
-                />
+            <TouchableOpacity onPress={cycleRepeat} style={styles.repeatBtn}>
+                <Ionicons name="repeat" size={24} color={repeatColor} />
+                {repeatMode === 'one' && (
+                    <View style={styles.repeatOneBadge}>
+                        <Text style={styles.repeatOneText}>1</Text>
+                    </View>
+                )}
             </TouchableOpacity>
         </View>
+        </>
     );
 }
 
@@ -151,6 +164,10 @@ const styles = StyleSheet.create({
         height: 56,
         borderRadius: 4,
         backgroundColor: theme.colors.border,
+    },
+    coverFallback: {
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     info: {
         marginLeft: 10,
@@ -179,8 +196,25 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    downloadBtn: {
+    repeatBtn: {
         marginLeft: 15,
         padding: 5,
-    }
+    },
+    repeatOneBadge: {
+        position: 'absolute',
+        bottom: 2,
+        right: 2,
+        backgroundColor: theme.colors.accent,
+        borderRadius: 5,
+        width: 10,
+        height: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    repeatOneText: {
+        color: theme.colors.background,
+        fontSize: 7,
+        fontWeight: 'bold',
+        lineHeight: 10,
+    },
 });

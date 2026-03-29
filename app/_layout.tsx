@@ -17,6 +17,11 @@ export default function RootLayout() {
             shouldDuckAndroid: true,
             playThroughEarpieceAndroid: false,
         });
+    }, []);
+
+    useEffect(() => {
+        // Don't navigate until the layout is mounted
+        if (!segments || segments.length === 0) return;
 
         const inTabsGroup = segments[0] === '(tabs)';
 
