@@ -23,6 +23,15 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses || true
+
+      - name: Install Android build tools
+        run: sdkmanager "build-tools;34.0.0" "platforms;android-35"
+
       - name: Setup EAS
         run: npm install -g eas-cli
 
@@ -32,6 +41,7 @@ jobs:
       - name: Build AAB
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         run: eas build --platform android --profile production --local --non-interactive --output ./build/nd-player.aab
 
       - name: Upload AAB
@@ -60,6 +70,15 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses || true
+
+      - name: Install Android build tools
+        run: sdkmanager "build-tools;34.0.0" "platforms;android-35"
+
       - name: Setup EAS
         run: npm install -g eas-cli
 
@@ -69,6 +88,7 @@ jobs:
       - name: Build APK
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         run: eas build --platform android --profile apk --local --non-interactive --output ./build/nd-player.apk
 
       - name: Upload APK
