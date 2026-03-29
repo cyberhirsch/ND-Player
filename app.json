@@ -6,7 +6,7 @@
     "version": "0.4.3",
     "orientation": "portrait",
     "icon": "./assets/button.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
