@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-aab:
-    name: AAB (Play Store)
+  build:
+    name: AAB + APK via EAS Cloud
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -17,83 +17,18 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Android licenses
-        run: yes | sdkmanager --licenses || true
-
-      - name: Install Android build tools
-        run: sdkmanager "build-tools;34.0.0" "platforms;android-35"
-
-      - name: Setup EAS
-        run: npm install -g eas-cli
-
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build AAB
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-        run: eas build --platform android --profile production --local --non-interactive --output ./build/nd-player.aab
-
-      - name: Upload AAB
-        uses: actions/upload-artifact@v4
-        with:
-          name: nd-player-aab
-          path: build/nd-player.aab
-          retention-days: 30
-
-  build-apk:
-    name: APK (Direct install)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Android licenses
-        run: yes | sdkmanager --licenses || true
-
-      - name: Install Android build tools
-        run: sdkmanager "build-tools;34.0.0" "platforms;android-35"
-
-      - name: Setup EAS
+      - name: Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps
-
-      - name: Build APK
+      - name: Build AAB (Play Store)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-        run: eas build --platform android --profile apk --local --non-interactive --output ./build/nd-player.apk
+        run: eas build --platform android --profile production --non-interactive
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: nd-player-apk
-          path: build/nd-player.apk
-          retention-days: 30
+      - name: Build APK (Direct install)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas build --platform android --profile apk --non-interactive
