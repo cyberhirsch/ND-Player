@@ -1,10 +1,11 @@
-name: Build Android AAB
+name: Build Android
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-aab:
+    name: AAB (Play Store)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -28,14 +29,51 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build AAB (local)
+      - name: Build AAB
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas build --platform android --profile production --local --non-interactive --output ./build/nd-player.aab
 
-      - name: Upload AAB artifact
+      - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
-          name: nd-player-release
+          name: nd-player-aab
           path: build/nd-player.aab
+          retention-days: 30
+
+  build-apk:
+    name: APK (Direct install)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup EAS
+        run: npm install -g eas-cli
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build APK
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas build --platform android --profile apk --local --non-interactive --output ./build/nd-player.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: nd-player-apk
+          path: build/nd-player.apk
           retention-days: 30
