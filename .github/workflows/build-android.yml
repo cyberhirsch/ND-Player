@@ -1,11 +1,11 @@
-name: Build Android
+name: Build Android APK
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    name: AAB + APK via EAS Cloud
+    name: APK (Direct install)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -18,17 +18,12 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm install
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: Build AAB (Play Store)
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --profile production --non-interactive
-
-      - name: Build APK (Direct install)
+      - name: Build APK
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas build --platform android --profile apk --non-interactive
