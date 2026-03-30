@@ -39,3 +39,12 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Claude Code
+.claude/
+
+# Local notes
+tasks.md
+
+# Large binary assets (source files)
+assets/*.psd
