@@ -1,143 +1,86 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Music, SkipBack, Pause, Play, SkipForward, Repeat, Repeat1 } from 'lucide-react-native';
 import { usePlayerStore, useOfflineStore, RepeatMode } from '../store/useStore';
-import { useEffect, useRef, useState } from 'react';
-import { Audio } from 'expo-av';
-import { getStreamUrl, getCoverArtUrl } from '../api/navidrome';
+import { useState, useEffect } from 'react';
+import TrackPlayer, { usePlaybackState, State } from 'react-native-track-player';
+import { getCoverArtUrl } from '../api/navidrome';
 import { theme } from '../constants/theme';
 import TrackListModal from './TrackListModal';
 
 export default function PlayerBar() {
-    const { currentTrack, isPlaying, setPlaying, playNext, playPrev, repeatMode, cycleRepeat } = usePlayerStore();
-    const { downloadedTracks } = useOfflineStore();
+    const { currentTrack, repeatMode, cycleRepeat, playNext, playPrev } = usePlayerStore();
+    const playbackState = usePlaybackState();
+    const isPlaying = playbackState.state === State.Playing;
+    const isLoading = playbackState.state === State.Loading || playbackState.state === State.Buffering;
     const repeatColor = repeatMode === 'off' ? theme.colors.textSecondary : theme.colors.accent;
-    const soundRef = useRef<Audio.Sound | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
     const [coverUrl, setCoverUrl] = useState<string | null>(null);
     const [showQueue, setShowQueue] = useState(false);
 
     useEffect(() => {
-        if (currentTrack) {
-            loadSound();
-            loadCover();
+        if (!currentTrack) return;
+        setCoverUrl(null);
+        if (currentTrack.localCoverUri) {
+            setCoverUrl(currentTrack.localCoverUri);
+        } else if (currentTrack.coverArt) {
+            getCoverArtUrl(currentTrack.coverArt).then(setCoverUrl).catch(() => {});
         }
     }, [currentTrack]);
 
-    useEffect(() => {
-        return () => {
-            soundRef.current?.unloadAsync();
-        };
-    }, []);
-
-    const loadCover = async () => {
-        if (!currentTrack) return;
-        if (currentTrack.localCoverUri) {
-            setCoverUrl(currentTrack.localCoverUri);
-        } else {
-            const url = await getCoverArtUrl(currentTrack.coverArt);
-            setCoverUrl(url);
-        }
-    };
-
-    const loadSound = async () => {
-        if (soundRef.current) {
-            await soundRef.current.unloadAsync();
-            soundRef.current = null;
-        }
-        if (!currentTrack) return;
-
-        setIsLoading(true);
-        try {
-            let uri = downloadedTracks[currentTrack.id];
-            if (!uri) {
-                uri = await getStreamUrl(currentTrack.id);
-            }
-
-            const { sound } = await Audio.Sound.createAsync(
-                { uri },
-                { shouldPlay: true }
-            );
-            soundRef.current = sound;
-            setPlaying(true);
-
-            sound.setOnPlaybackStatusUpdate((status) => {
-                if (status.isLoaded && status.didJustFinish) {
-                    playNext();
-                }
-            });
-
-        } catch (e) {
-            console.error('Failed to load sound', e);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     const togglePlayPause = async () => {
-        if (!soundRef.current) return;
-        if (isPlaying) {
-            await soundRef.current.pauseAsync();
-            setPlaying(false);
-        } else {
-            await soundRef.current.playAsync();
-            setPlaying(true);
-        }
+        if (isPlaying) await TrackPlayer.pause();
+        else await TrackPlayer.play();
     };
 
     if (!currentTrack) return null;
 
     return (
         <>
-        <TrackListModal
-            visible={showQueue}
-            onClose={() => setShowQueue(false)}
-            coverUrl={coverUrl}
-        />
-        <View style={styles.container}>
-            <View style={styles.leftContainer}>
-                <TouchableOpacity onPress={() => setShowQueue(true)} activeOpacity={0.8}>
-                    {coverUrl ? (
-                        <Image
-                            source={{ uri: coverUrl }}
-                            style={styles.cover}
-                            onError={() => setCoverUrl(null)}
-                        />
-                    ) : (
-                        <View style={[styles.cover, styles.coverFallback]}>
-                            <Music size={28} color={theme.colors.textSecondary} />
-                        </View>
-                    )}
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.info} onPress={() => setShowQueue(true)} activeOpacity={0.7}>
-                    <Text style={styles.title} numberOfLines={1}>{currentTrack.title}</Text>
-                    <Text style={styles.artist} numberOfLines={1}>{currentTrack.artist}</Text>
-                </TouchableOpacity>
-            </View>
+            <TrackListModal
+                visible={showQueue}
+                onClose={() => setShowQueue(false)}
+                coverUrl={coverUrl}
+            />
+            <View style={styles.container}>
+                <View style={styles.leftContainer}>
+                    <TouchableOpacity onPress={() => setShowQueue(true)} activeOpacity={0.8}>
+                        {coverUrl ? (
+                            <Image source={{ uri: coverUrl }} style={styles.cover} onError={() => setCoverUrl(null)} />
+                        ) : (
+                            <View style={[styles.cover, styles.coverFallback]}>
+                                <Music size={28} color={theme.colors.textSecondary} />
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.info} onPress={() => setShowQueue(true)} activeOpacity={0.7}>
+                        <Text style={styles.title} numberOfLines={1}>{currentTrack.title}</Text>
+                        <Text style={styles.artist} numberOfLines={1}>{currentTrack.artist}</Text>
+                    </TouchableOpacity>
+                </View>
 
-            <View style={styles.controls}>
-                <TouchableOpacity onPress={playPrev}>
-                    <SkipBack size={24} color={theme.colors.textPrimary} fill={theme.colors.textPrimary} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={togglePlayPause} disabled={isLoading}>
-                    {isLoading
-                        ? <ActivityIndicator size="small" color={theme.colors.background} />
-                        : isPlaying
-                            ? <Pause size={24} color={theme.colors.textPrimary} fill={theme.colors.textPrimary} />
-                            : <Play size={24} color={theme.colors.textPrimary} fill={theme.colors.textPrimary} />
+                <View style={styles.controls}>
+                    <TouchableOpacity onPress={() => playPrev()}>
+                        <SkipBack size={24} color={theme.colors.textPrimary} fill={theme.colors.textPrimary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={togglePlayPause} disabled={isLoading}>
+                        {isLoading
+                            ? <ActivityIndicator size="small" color={theme.colors.textPrimary} />
+                            : isPlaying
+                                ? <Pause size={24} color={theme.colors.textPrimary} fill={theme.colors.textPrimary} />
+                                : <Play size={24} color={theme.colors.textPrimary} fill={theme.colors.textPrimary} />
+                        }
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => playNext()}>
+                        <SkipForward size={24} color={theme.colors.textPrimary} fill={theme.colors.textPrimary} />
+                    </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity onPress={() => cycleRepeat()} style={styles.repeatBtn}>
+                    {repeatMode === 'one'
+                        ? <Repeat1 size={24} color={repeatColor} />
+                        : <Repeat size={24} color={repeatColor} />
                     }
                 </TouchableOpacity>
-                <TouchableOpacity onPress={playNext}>
-                    <SkipForward size={24} color={theme.colors.textPrimary} fill={theme.colors.textPrimary} />
-                </TouchableOpacity>
             </View>
-
-            <TouchableOpacity onPress={cycleRepeat} style={styles.repeatBtn}>
-                {repeatMode === 'one'
-                    ? <Repeat1 size={24} color={repeatColor} />
-                    : <Repeat size={24} color={repeatColor} />
-                }
-            </TouchableOpacity>
-        </View>
         </>
     );
 }

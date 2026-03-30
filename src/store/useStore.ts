@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+import TrackPlayer, { RepeatMode as RNTPRepeatMode } from 'react-native-track-player';
+import { getAuthParamsRaw, buildStreamUrl, buildCoverArtUrlSync } from '../api/navidrome';
 
 export interface Track {
   id: string;
@@ -23,11 +25,11 @@ interface PlayerState {
   currentIndex: number;
   repeatMode: RepeatMode;
   setPlaying: (isPlaying: boolean) => void;
-  setQueue: (tracks: Track[], startIndex?: number) => void;
-  playNext: () => void;
-  playPrev: () => void;
-  jumpTo: (index: number) => void;
-  cycleRepeat: () => void;
+  setQueue: (tracks: Track[], startIndex?: number) => Promise<void>;
+  playNext: () => Promise<void>;
+  playPrev: () => Promise<void>;
+  jumpTo: (index: number) => Promise<void>;
+  cycleRepeat: () => Promise<void>;
 }
 
 interface AuthState {
@@ -150,52 +152,6 @@ export const useLibraryStore = create<LibraryState>()(
   )
 );
 
-export const usePlayerStore = create<PlayerState>((set, get) => ({
-  isPlaying: false,
-  currentTrack: null,
-  queue: [],
-  currentIndex: -1,
-  repeatMode: 'off',
-  setPlaying: (isPlaying) => set({ isPlaying }),
-  setQueue: (tracks, startIndex = 0) => set({
-    queue: tracks,
-    currentIndex: startIndex,
-    currentTrack: tracks[startIndex] || null,
-  }),
-  playNext: () => {
-    const { queue, currentIndex, repeatMode } = get();
-    if (repeatMode === 'one') {
-      // Restart current track by nudging the reference
-      set({ currentTrack: { ...queue[currentIndex] } });
-    } else if (currentIndex < queue.length - 1) {
-      set({ currentIndex: currentIndex + 1, currentTrack: queue[currentIndex + 1] });
-    } else if (repeatMode === 'all' && queue.length > 0) {
-      set({ currentIndex: 0, currentTrack: queue[0] });
-    } else {
-      set({ isPlaying: false });
-    }
-  },
-  playPrev: () => {
-    const { queue, currentIndex } = get();
-    if (currentIndex > 0) {
-      set({ currentIndex: currentIndex - 1, currentTrack: queue[currentIndex - 1] });
-    } else if (queue[currentIndex]) {
-      set({ currentTrack: { ...queue[currentIndex] } });
-    }
-  },
-  jumpTo: (index: number) => {
-    const { queue } = get();
-    if (index >= 0 && index < queue.length) {
-      set({ currentIndex: index, currentTrack: queue[index] });
-    }
-  },
-  cycleRepeat: () => {
-    const { repeatMode } = get();
-    const next: RepeatMode = repeatMode === 'off' ? 'all' : repeatMode === 'all' ? 'one' : 'off';
-    set({ repeatMode: next });
-  },
-}));
-
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -212,6 +168,8 @@ export const useAuthStore = create<AuthState>()(
   )
 );
 
+// useOfflineStore must be defined BEFORE usePlayerStore so it can be referenced
+// via useOfflineStore.getState() inside the player actions.
 export const useOfflineStore = create<OfflineState>()(
   persist(
     (set, get) => ({
@@ -247,3 +205,76 @@ export const useOfflineStore = create<OfflineState>()(
     }
   )
 );
+
+export const usePlayerStore = create<PlayerState>((set, get) => ({
+  isPlaying: false,
+  currentTrack: null,
+  queue: [],
+  currentIndex: -1,
+  repeatMode: 'off',
+  setPlaying: (isPlaying) => set({ isPlaying }),
+  setQueue: async (tracks: Track[], startIndex = 0) => {
+    set({ queue: tracks, currentIndex: startIndex, currentTrack: tracks[startIndex] || null, isPlaying: false });
+    try {
+      const { serverUrl } = useAuthStore.getState();
+      const { downloadedTracks } = useOfflineStore.getState();
+      const params = serverUrl ? await getAuthParamsRaw() : null;
+
+      const rntpTracks = tracks.map(t => ({
+        id: t.id,
+        url: downloadedTracks[t.id] ?? (params && serverUrl ? buildStreamUrl(t.id, serverUrl, params) : ''),
+        title: t.title,
+        artist: t.artist,
+        album: t.album,
+        artwork: t.coverArt && params && serverUrl ? buildCoverArtUrlSync(t.coverArt, serverUrl, params) : undefined,
+        duration: t.duration,
+      }));
+
+      await TrackPlayer.setQueue(rntpTracks);
+      await TrackPlayer.skip(startIndex);
+      await TrackPlayer.play();
+      set({ isPlaying: true });
+    } catch (e) {
+      console.error('RNTP setQueue failed', e);
+    }
+  },
+  playNext: async () => {
+    const { queue, currentIndex, repeatMode } = get();
+    if (repeatMode === 'one') {
+      await TrackPlayer.seekTo(0);
+      await TrackPlayer.play();
+    } else if (currentIndex < queue.length - 1) {
+      await TrackPlayer.skipToNext();
+    } else if (repeatMode === 'all' && queue.length > 0) {
+      await TrackPlayer.skip(0);
+      await TrackPlayer.play();
+    } else {
+      await TrackPlayer.pause();
+      set({ isPlaying: false });
+    }
+  },
+  playPrev: async () => {
+    const { queue, currentIndex } = get();
+    if (currentIndex > 0) {
+      await TrackPlayer.skipToPrevious();
+    } else {
+      await TrackPlayer.seekTo(0);
+      await TrackPlayer.play();
+    }
+  },
+  jumpTo: async (index: number) => {
+    const { queue } = get();
+    if (index >= 0 && index < queue.length) {
+      set({ currentIndex: index, currentTrack: queue[index] });
+      await TrackPlayer.skip(index);
+      await TrackPlayer.play();
+    }
+  },
+  cycleRepeat: async () => {
+    const { repeatMode } = get();
+    const next: RepeatMode = repeatMode === 'off' ? 'all' : repeatMode === 'all' ? 'one' : 'off';
+    set({ repeatMode: next });
+    const rntpMode = next === 'off' ? RNTPRepeatMode.Off : next === 'all' ? RNTPRepeatMode.Queue : RNTPRepeatMode.Track;
+    await TrackPlayer.setRepeatMode(rntpMode);
+  },
+}));

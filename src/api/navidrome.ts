@@ -232,3 +232,19 @@ export const getSongs = async (offset = 0, size = 50) => {
     const result = response.data['subsonic-response'].searchResult3 || {};
     return result.song || [];
 };
+
+// Raw auth params without wifi check - for building URLs in bulk
+export const getAuthParamsRaw = async (): Promise<Record<string, string> | null> => {
+    const { serverUrl, username } = useAuthStore.getState();
+    const password = await SecureStore.getItemAsync('password');
+    if (!serverUrl || !username || !password) return null;
+    const salt = Math.random().toString(36).substring(2, 15);
+    const token = md5(password + salt);
+    return { u: username, t: token, s: salt, v: '1.16.1', c: CLIENT_NAME, f: 'json' };
+};
+
+export const buildStreamUrl = (id: string, serverUrl: string, params: Record<string, string>): string =>
+    `${serverUrl}/rest/stream.view?id=${id}&${new URLSearchParams(params).toString()}`;
+
+export const buildCoverArtUrlSync = (id: string, serverUrl: string, params: Record<string, string>): string =>
+    `${serverUrl}/rest/getCoverArt.view?id=${id}&${new URLSearchParams(params).toString()}`;
