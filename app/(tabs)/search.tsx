@@ -3,7 +3,7 @@ import {
     StyleSheet, ActivityIndicator, Alert, Dimensions,
 } from 'react-native';
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import { Search, CloudOff, Heart, XCircle, Music2, Play } from 'lucide-react-native';
 import { search, getAlbum, getPlaylists, getPlaylist, getCoverArtUrl, getStarred } from '../../src/api/navidrome';
 import { usePlayerStore, useOfflineStore, useLibraryStore } from '../../src/store/useStore';
 import { theme } from '../../src/constants/theme';
@@ -149,12 +149,12 @@ export default function SearchScreen() {
             <View style={styles.container}>
                 <View style={styles.topBar}>
                     <View style={[styles.searchBox, { flex: 1 }]}>
-                        <Ionicons name="search" size={18} color={theme.colors.textSecondary} style={styles.searchIcon} />
+                        <Search size={18} color={theme.colors.textSecondary} style={styles.searchIcon} />
                         <Text style={[styles.input, { color: theme.colors.textSecondary }]}>Filter…</Text>
                     </View>
                 </View>
                 <View style={styles.center}>
-                    <Ionicons name="cloud-offline" size={48} color={theme.colors.border} />
+                    <CloudOff size={48} color={theme.colors.border} />
                     <Text style={styles.hint}>Not available in offline mode</Text>
                 </View>
             </View>
@@ -167,7 +167,7 @@ export default function SearchScreen() {
             {/* ── Top bar: search + heart ── */}
             <View style={styles.topBar}>
                 <View style={styles.searchBox}>
-                    <Ionicons name="search" size={18} color={theme.colors.textSecondary} style={styles.searchIcon} />
+                    <Search size={18} color={theme.colors.textSecondary} style={styles.searchIcon} />
                     <TextInput
                         style={styles.input}
                         placeholder="Filter playlists, albums, songs…"
@@ -180,16 +180,15 @@ export default function SearchScreen() {
                     />
                     {query.length > 0 && (
                         <TouchableOpacity onPress={() => setQuery('')} style={styles.clearBtn}>
-                            <Ionicons name="close-circle" size={18} color={theme.colors.textSecondary} />
+                            <XCircle size={18} color={theme.colors.textSecondary} />
                         </TouchableOpacity>
                     )}
                 </View>
                 <TouchableOpacity onPress={() => setFavoritesOnly(f => !f)} style={styles.heartBtn}>
-                    <Ionicons
-                        name={favoritesOnly ? 'heart' : 'heart-outline'}
-                        size={26}
-                        color={favoritesOnly ? theme.colors.error : theme.colors.textSecondary}
-                    />
+                    {favoritesOnly
+                        ? <Heart size={26} color={theme.colors.accent} fill={theme.colors.accent} />
+                        : <Heart size={26} color={theme.colors.textSecondary} />
+                    }
                 </TouchableOpacity>
             </View>
 
@@ -246,13 +245,13 @@ export default function SearchScreen() {
                         <View style={styles.center}>
                             {favoritesOnly ? (
                                 <>
-                                    <Ionicons name="heart-outline" size={48} color={theme.colors.border} />
+                                    <Heart size={48} color={theme.colors.border} />
                                     <Text style={styles.hint}>No favorites yet</Text>
                                     <Text style={styles.subHint}>Star albums or songs in Navidrome to see them here</Text>
                                 </>
                             ) : q ? (
                                 <>
-                                    <Ionicons name="search" size={48} color={theme.colors.border} />
+                                    <Search size={48} color={theme.colors.border} />
                                     <Text style={styles.hint}>No results for "{query}"</Text>
                                 </>
                             ) : null}
@@ -270,7 +269,7 @@ export default function SearchScreen() {
 const PlaylistRow = memo(({ item, onPlay }: { item: any; onPlay: (id: string) => void }) => (
     <TouchableOpacity style={styles.row} onPress={() => onPlay(item.id)}>
         <View style={styles.rowIcon}>
-            <Ionicons name="musical-notes" size={20} color={theme.colors.textSecondary} />
+            <Music2 size={20} color={theme.colors.textSecondary} />
         </View>
         <View style={styles.rowInfo}>
             <Text style={styles.rowTitle} numberOfLines={1}>{item.name}</Text>
@@ -278,7 +277,7 @@ const PlaylistRow = memo(({ item, onPlay }: { item: any; onPlay: (id: string) =>
                 {item.songCount} songs{item.duration ? ` · ${Math.round(item.duration / 60)} min` : ''}
             </Text>
         </View>
-        <Ionicons name="play-circle-outline" size={26} color={theme.colors.accent} />
+        <Play size={26} color={theme.colors.accent} />
     </TouchableOpacity>
 ));
 
@@ -290,7 +289,7 @@ const AlbumCard = memo(({ item, onPlay }: { item: any; onPlay: (id: string) => v
             <View style={styles.albumCover}>
                 {coverUrl
                     ? <Image source={{ uri: coverUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-                    : <Ionicons name="musical-notes" size={28} color={theme.colors.border} />
+                    : <Music2 size={28} color={theme.colors.border} />
                 }
             </View>
             <Text style={styles.albumTitle} numberOfLines={1}>{item.title || item.name}</Text>
@@ -307,14 +306,14 @@ const SongRow = memo(({ item, onPlay }: { item: any; onPlay: (item: any) => void
             <View style={styles.thumb}>
                 {coverUrl
                     ? <Image source={{ uri: coverUrl }} style={styles.thumbImage} />
-                    : <Ionicons name="musical-notes" size={18} color={theme.colors.border} />
+                    : <Music2 size={18} color={theme.colors.border} />
                 }
             </View>
             <View style={styles.rowInfo}>
                 <Text style={styles.rowTitle} numberOfLines={1}>{item.title}</Text>
                 <Text style={styles.rowSub} numberOfLines={1}>{item.artist} · {item.album}</Text>
             </View>
-            <Ionicons name="play-circle-outline" size={26} color={theme.colors.accent} />
+            <Play size={26} color={theme.colors.accent} />
         </TouchableOpacity>
     );
 });

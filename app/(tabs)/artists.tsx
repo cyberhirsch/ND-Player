@@ -1,19 +1,21 @@
 import {
     View, Text, FlatList, TouchableOpacity, StyleSheet,
-    ActivityIndicator, TextInput, Modal, Image, ScrollView,
+    ActivityIndicator, TextInput, Modal, Image, ScrollView, Alert,
 } from 'react-native';
 import { useEffect, useState, useCallback, memo } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import { Search, XCircle, User, ChevronRight, X, Play, Music2, Download, CheckCircle2, Trash2 } from 'lucide-react-native';
 import { getArtists, getArtist, getAlbum, getCoverArtUrl } from '../../src/api/navidrome';
-import { usePlayerStore, useAuthStore } from '../../src/store/useStore';
+import { usePlayerStore, useAuthStore, useOfflineStore } from '../../src/store/useStore';
 import { theme } from '../../src/constants/theme';
 import NoServer from '../../src/components/NoServer';
+import { downloadAlbum, deleteAlbum } from '../../src/utils/downloader';
 
 export default function ArtistsScreen() {
     const [artists, setArtists] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('');
     const [selectedArtist, setSelectedArtist] = useState<any | null>(null);
+    const serverUrl = useAuthStore((state) => state.serverUrl);
 
     useEffect(() => {
         getArtists()
@@ -40,7 +42,7 @@ export default function ArtistsScreen() {
     return (
         <View style={styles.container}>
             <View style={styles.filterBar}>
-                <Ionicons name="search" size={16} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
+                <Search size={16} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
                 <TextInput
                     style={styles.filterInput}
                     placeholder="Filter artists…"
@@ -53,7 +55,7 @@ export default function ArtistsScreen() {
                 />
                 {filter.length > 0 && (
                     <TouchableOpacity onPress={() => setFilter('')}>
-                        <Ionicons name="close-circle" size={16} color={theme.colors.textSecondary} />
+                        <XCircle size={16} color={theme.colors.textSecondary} />
                     </TouchableOpacity>
                 )}
             </View>
@@ -82,7 +84,7 @@ export default function ArtistsScreen() {
 const ArtistRow = memo(({ item, onPress }: { item: any; onPress: () => void }) => (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
         <View style={styles.avatar}>
-            <Ionicons name="person" size={22} color={theme.colors.textSecondary} />
+            <User size={22} color={theme.colors.textSecondary} />
         </View>
         <View style={styles.rowInfo}>
             <Text style={styles.rowName} numberOfLines={1}>{item.name}</Text>
@@ -90,7 +92,7 @@ const ArtistRow = memo(({ item, onPress }: { item: any; onPress: () => void }) =
                 <Text style={styles.rowSub}>{item.albumCount} album{item.albumCount !== 1 ? 's' : ''}</Text>
             )}
         </View>
-        <Ionicons name="chevron-forward" size={18} color={theme.colors.textSecondary} />
+        <ChevronRight size={18} color={theme.colors.textSecondary} />
     </TouchableOpacity>
 ));
 
@@ -99,8 +101,11 @@ const ArtistRow = memo(({ item, onPress }: { item: any; onPress: () => void }) =
 function ArtistModal({ artist, onClose }: { artist: any; onClose: () => void }) {
     const [albums, setAlbums] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [downloadingAlbums, setDownloadingAlbums] = useState<Record<string, boolean>>({});
     const serverUrl = useAuthStore((state) => state.serverUrl);
     const setQueue = usePlayerStore(state => state.setQueue);
+    const isOfflineMode = useOfflineStore((state) => state.isOfflineMode);
+    const isAlbumDownloaded = useOfflineStore((state) => state.isAlbumDownloaded);
 
     useEffect(() => {
         getArtist(artist.id)
@@ -143,6 +148,25 @@ function ArtistModal({ artist, onClose }: { artist: any; onClose: () => void }) 
         }
     }, [albums, setQueue, onClose]);
 
+    const handleDownload = useCallback(async (albumId: string, albumTitle: string) => {
+        if (downloadingAlbums[albumId]) return;
+        setDownloadingAlbums(prev => ({ ...prev, [albumId]: true }));
+        const result = await downloadAlbum(albumId);
+        setDownloadingAlbums(prev => ({ ...prev, [albumId]: false }));
+        if (result) {
+            Alert.alert('Download Complete', `${albumTitle} is now available offline`);
+        } else {
+            Alert.alert('Download Failed', 'Could not download album');
+        }
+    }, [downloadingAlbums]);
+
+    const handleDelete = useCallback((albumId: string, albumTitle: string) => {
+        Alert.alert('Delete Album', `Remove ${albumTitle} from offline storage?`, [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: () => deleteAlbum(albumId) },
+        ]);
+    }, []);
+
     return (
         <Modal visible animationType="slide" onRequestClose={onClose}>
             <View style={styles.modal}>
@@ -152,20 +176,20 @@ function ArtistModal({ artist, onClose }: { artist: any; onClose: () => void }) 
                     <View style={styles.handle} />
                     <View style={styles.modalTitleRow}>
                         <View style={styles.modalAvatar}>
-                            <Ionicons name="person" size={28} color={theme.colors.textSecondary} />
+                            <User size={28} color={theme.colors.textSecondary} />
                         </View>
                         <View style={styles.modalTitleInfo}>
                             <Text style={styles.modalArtistName} numberOfLines={1}>{artist.name}</Text>
                             <Text style={styles.modalSub}>{albums.length} album{albums.length !== 1 ? 's' : ''}</Text>
                         </View>
                         <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                            <Ionicons name="close" size={26} color={theme.colors.textPrimary} />
+                            <X size={26} color={theme.colors.textPrimary} />
                         </TouchableOpacity>
                     </View>
 
                     {!loading && albums.length > 0 && (
                         <TouchableOpacity style={styles.playAllBtn} onPress={playAll}>
-                            <Ionicons name="play" size={16} color={theme.colors.background} />
+                            <Play size={16} color={theme.colors.background} fill={theme.colors.background} />
                             <Text style={styles.playAllText}>Play All</Text>
                         </TouchableOpacity>
                     )}
@@ -180,7 +204,16 @@ function ArtistModal({ artist, onClose }: { artist: any; onClose: () => void }) 
                 ) : (
                     <ScrollView contentContainerStyle={styles.albumGrid}>
                         {albums.map(album => (
-                            <AlbumCard key={album.id} item={album} onPlay={playAlbum} />
+                            <AlbumCard
+                                key={album.id}
+                                item={album}
+                                onPlay={playAlbum}
+                                isOfflineMode={isOfflineMode}
+                                isDownloaded={isAlbumDownloaded(album.id)}
+                                isDownloading={!!downloadingAlbums[album.id]}
+                                onDownload={handleDownload}
+                                onDelete={handleDelete}
+                            />
                         ))}
                     </ScrollView>
                 )}
@@ -191,7 +224,15 @@ function ArtistModal({ artist, onClose }: { artist: any; onClose: () => void }) 
 
 // ── Album card inside modal ───────────────────────────────────────────────────
 
-const AlbumCard = memo(({ item, onPlay }: { item: any; onPlay: (id: string) => void }) => {
+const AlbumCard = memo(({ item, onPlay, isOfflineMode, isDownloaded, isDownloading, onDownload, onDelete }: {
+    item: any;
+    onPlay: (id: string) => void;
+    isOfflineMode: boolean;
+    isDownloaded: boolean;
+    isDownloading: boolean;
+    onDownload: (id: string, title: string) => void;
+    onDelete: (id: string, title: string) => void;
+}) => {
     const [coverUrl, setCoverUrl] = useState<string | null>(null);
 
     useEffect(() => {
@@ -203,8 +244,26 @@ const AlbumCard = memo(({ item, onPlay }: { item: any; onPlay: (id: string) => v
             <View style={styles.albumCover}>
                 {coverUrl
                     ? <Image source={{ uri: coverUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-                    : <Ionicons name="musical-notes" size={28} color={theme.colors.border} />
+                    : <Music2 size={28} color={theme.colors.border} />
                 }
+                {/* Download button overlay */}
+                {!isOfflineMode && (
+                    <TouchableOpacity
+                        style={styles.downloadBtn}
+                        onPress={(e) => {
+                            e.stopPropagation();
+                            isDownloaded ? onDelete(item.id, item.name ?? item.title) : onDownload(item.id, item.name ?? item.title);
+                        }}
+                        disabled={isDownloading}
+                    >
+                        {isDownloading
+                            ? <ActivityIndicator size="small" color={theme.colors.accent} />
+                            : isDownloaded
+                                ? <CheckCircle2 size={18} color={theme.colors.accent} />
+                                : <Download size={18} color={theme.colors.textPrimary} />
+                        }
+                    </TouchableOpacity>
+                )}
             </View>
             <Text style={styles.albumTitle} numberOfLines={2}>{item.name ?? item.title}</Text>
             {item.year > 0 && <Text style={styles.albumYear}>{item.year}</Text>}
@@ -366,6 +425,14 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    downloadBtn: {
+        position: 'absolute',
+        bottom: 6,
+        right: 6,
+        backgroundColor: 'rgba(0,0,0,0.55)',
+        borderRadius: 20,
+        padding: 5,
     },
     albumTitle: {
         color: theme.colors.textPrimary,

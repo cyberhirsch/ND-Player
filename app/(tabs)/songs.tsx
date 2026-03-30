@@ -3,7 +3,7 @@ import {
     ActivityIndicator, TextInput, Image,
 } from 'react-native';
 import { useEffect, useState, useRef, useCallback, memo } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import { Search, XCircle, Heart, Music2, Play } from 'lucide-react-native';
 import { getSongs, getStarred, search, getCoverArtUrl } from '../../src/api/navidrome';
 import { usePlayerStore, useOfflineStore, useAuthStore } from '../../src/store/useStore';
 import { theme } from '../../src/constants/theme';
@@ -146,7 +146,7 @@ export default function SongsScreen() {
             {/* Filter bar */}
             <View style={styles.filterRow}>
                 <View style={styles.filterBar}>
-                    <Ionicons name="search" size={16} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
+                    <Search size={16} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
                     <TextInput
                         style={styles.filterInput}
                         placeholder={favoritesOnly ? 'Filter starred songs…' : 'Search songs…'}
@@ -159,16 +159,15 @@ export default function SongsScreen() {
                     />
                     {filter.length > 0 && (
                         <TouchableOpacity onPress={() => setFilter('')}>
-                            <Ionicons name="close-circle" size={16} color={theme.colors.textSecondary} />
+                            <XCircle size={16} color={theme.colors.textSecondary} />
                         </TouchableOpacity>
                     )}
                 </View>
                 <TouchableOpacity onPress={() => setFavoritesOnly(f => !f)} style={styles.heartBtn}>
-                    <Ionicons
-                        name={favoritesOnly ? 'heart' : 'heart-outline'}
-                        size={24}
-                        color={favoritesOnly ? theme.colors.error : theme.colors.textSecondary}
-                    />
+                    {favoritesOnly
+                        ? <Heart size={24} color={theme.colors.accent} fill={theme.colors.accent} />
+                        : <Heart size={24} color={theme.colors.textSecondary} />
+                    }
                 </TouchableOpacity>
             </View>
 
@@ -195,7 +194,7 @@ export default function SongsScreen() {
                         <View style={styles.empty}>
                             {favoritesOnly ? (
                                 <>
-                                    <Ionicons name="heart-outline" size={48} color={theme.colors.border} />
+                                    <Heart size={48} color={theme.colors.border} />
                                     <Text style={styles.emptyText}>No starred songs</Text>
                                     <Text style={styles.emptyHint}>Star songs in Navidrome to see them here</Text>
                                 </>
@@ -228,14 +227,14 @@ const SongRow = memo(({ item, onPress }: { item: any; onPress: () => void }) => 
             <View style={styles.thumb}>
                 {coverUrl
                     ? <Image source={{ uri: coverUrl }} style={styles.thumbImage} />
-                    : <Ionicons name="musical-notes" size={18} color={theme.colors.border} />
+                    : <Music2 size={18} color={theme.colors.border} />
                 }
             </View>
             <View style={styles.info}>
                 <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
                 <Text style={styles.sub} numberOfLines={1}>{item.artist}{item.album ? ` · ${item.album}` : ''}</Text>
             </View>
-            <Ionicons name="play-circle-outline" size={26} color={theme.colors.accent} />
+            <Play size={26} color={theme.colors.accent} />
         </TouchableOpacity>
     );
 });

@@ -1,12 +1,23 @@
 import axios from 'axios';
 import md5 from 'md5';
 import * as SecureStore from 'expo-secure-store';
-import { useAuthStore } from '../store/useStore';
+import * as Network from 'expo-network';
+import { useAuthStore, useSettingsStore } from '../store/useStore';
+
+const checkWifiPolicy = async () => {
+    const { wifiOnly } = useSettingsStore.getState();
+    if (!wifiOnly) return;
+    const state = await Network.getNetworkStateAsync();
+    if (state.type !== Network.NetworkStateType.WIFI) {
+        throw new Error('WiFi only mode is enabled. Connect to WiFi to stream music.');
+    }
+};
 
 const CLIENT_NAME = 'NDPlayer';
 const CLIENT_VERSION = '1.0.0';
 
 export const getAuthParams = async () => {
+    await checkWifiPolicy();
     const { serverUrl, username } = useAuthStore.getState();
     const password = await SecureStore.getItemAsync('password');
 

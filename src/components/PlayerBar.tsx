@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Music, SkipBack, Pause, Play, SkipForward, Repeat, Repeat1 } from 'lucide-react-native';
 import { usePlayerStore, useOfflineStore, RepeatMode } from '../store/useStore';
 import { useEffect, useRef, useState } from 'react';
 import { Audio } from 'expo-av';
@@ -104,7 +104,7 @@ export default function PlayerBar() {
                         />
                     ) : (
                         <View style={[styles.cover, styles.coverFallback]}>
-                            <Ionicons name="musical-note" size={28} color={theme.colors.textSecondary} />
+                            <Music size={28} color={theme.colors.textSecondary} />
                         </View>
                     )}
                 </TouchableOpacity>
@@ -116,26 +116,26 @@ export default function PlayerBar() {
 
             <View style={styles.controls}>
                 <TouchableOpacity onPress={playPrev}>
-                    <Ionicons name="play-skip-back" size={24} color={theme.colors.textPrimary} />
+                    <SkipBack size={24} color={theme.colors.textPrimary} fill={theme.colors.textPrimary} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={togglePlayPause} style={styles.playButton} disabled={isLoading}>
+                <TouchableOpacity onPress={togglePlayPause} disabled={isLoading}>
                     {isLoading
                         ? <ActivityIndicator size="small" color={theme.colors.background} />
-                        : <Ionicons name={isPlaying ? "pause" : "play"} size={32} color={theme.colors.background} />
+                        : isPlaying
+                            ? <Pause size={24} color={theme.colors.textPrimary} fill={theme.colors.textPrimary} />
+                            : <Play size={24} color={theme.colors.textPrimary} fill={theme.colors.textPrimary} />
                     }
                 </TouchableOpacity>
                 <TouchableOpacity onPress={playNext}>
-                    <Ionicons name="play-skip-forward" size={24} color={theme.colors.textPrimary} />
+                    <SkipForward size={24} color={theme.colors.textPrimary} fill={theme.colors.textPrimary} />
                 </TouchableOpacity>
             </View>
 
             <TouchableOpacity onPress={cycleRepeat} style={styles.repeatBtn}>
-                <Ionicons name="repeat" size={24} color={repeatColor} />
-                {repeatMode === 'one' && (
-                    <View style={styles.repeatOneBadge}>
-                        <Text style={styles.repeatOneText}>1</Text>
-                    </View>
-                )}
+                {repeatMode === 'one'
+                    ? <Repeat1 size={24} color={repeatColor} />
+                    : <Repeat size={24} color={repeatColor} />
+                }
             </TouchableOpacity>
         </View>
         </>
@@ -188,33 +188,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 15,
     },
-    playButton: {
-        backgroundColor: theme.colors.textPrimary,
-        borderRadius: 20,
-        width: 40,
-        height: 40,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
     repeatBtn: {
         marginLeft: 15,
         padding: 5,
-    },
-    repeatOneBadge: {
-        position: 'absolute',
-        bottom: 2,
-        right: 2,
-        backgroundColor: theme.colors.accent,
-        borderRadius: 5,
-        width: 10,
-        height: 10,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    repeatOneText: {
-        color: theme.colors.background,
-        fontSize: 7,
-        fontWeight: 'bold',
-        lineHeight: 10,
     },
 });

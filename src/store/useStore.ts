@@ -73,9 +73,11 @@ interface OfflineState {
 interface SettingsState {
   cacheDir: string | null;
   musicFolders: string[];
+  wifiOnly: boolean;
   setCacheDir: (dir: string | null) => void;
   addMusicFolder: (uri: string) => void;
   removeMusicFolder: (uri: string) => void;
+  setWifiOnly: (value: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -83,6 +85,7 @@ export const useSettingsStore = create<SettingsState>()(
     (set, get) => ({
       cacheDir: null,
       musicFolders: [],
+      wifiOnly: false,
       setCacheDir: (dir) => set({ cacheDir: dir }),
       addMusicFolder: (uri) => set((state) => ({
         musicFolders: state.musicFolders.includes(uri)
@@ -92,6 +95,7 @@ export const useSettingsStore = create<SettingsState>()(
       removeMusicFolder: (uri) => set((state) => ({
         musicFolders: state.musicFolders.filter(f => f !== uri)
       })),
+      setWifiOnly: (value) => set({ wifiOnly: value }),
     }),
     {
       name: 'settings-storage',

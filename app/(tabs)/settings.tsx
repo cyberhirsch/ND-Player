@@ -4,12 +4,12 @@ import { useAuthStore, useSettingsStore } from '../../src/store/useStore';
 import * as SecureStore from 'expo-secure-store';
 import * as FileSystem from 'expo-file-system/legacy';
 import { theme } from '../../src/constants/theme';
-import { Ionicons } from '@expo/vector-icons';
+import { FolderOpen, XCircle, Trash2, PlusCircle, LogOut, ToggleLeft, ToggleRight } from 'lucide-react-native';
 import { ping } from '../../src/api/navidrome';
 
 export default function SettingsScreen() {
     const { serverUrl, username, setAuth, logout } = useAuthStore();
-    const { cacheDir, musicFolders, setCacheDir, addMusicFolder, removeMusicFolder } = useSettingsStore();
+    const { cacheDir, musicFolders, wifiOnly, setCacheDir, addMusicFolder, removeMusicFolder, setWifiOnly } = useSettingsStore();
     const [url, setUrl] = useState(serverUrl || '');
     const [user, setUser] = useState(username || '');
     const [pass, setPass] = useState('');
@@ -76,7 +76,7 @@ export default function SettingsScreen() {
         if (lastSuccess && successfulUrl) {
             await SecureStore.setItemAsync('password', pass);
             setAuth(successfulUrl, user);
-            setMessage({ text: 'Settings saved successfully!', type: 'success' });
+            setMessage({ text: `Login successful · Connected as ${user}`, type: 'success' });
         } else {
             setMessage({ text: 'Connection failed. Check credentials and server URL.', type: 'error' });
         }
@@ -125,10 +125,8 @@ export default function SettingsScreen() {
                     <Text style={styles.welcomeText}>Connect to a Navidrome server to stream music, or add a local music folder below. You can use all features without a server.</Text>
                 </View>
             )}
-            <Text style={styles.header}>Server Settings</Text>
-
             <View style={styles.formGroup}>
-                <Text style={styles.label}>Server URL</Text>
+                <Text style={styles.label}>Navidrome Server URL</Text>
                 <TextInput
                     value={url}
                     onChangeText={setUrl}
@@ -179,9 +177,24 @@ export default function SettingsScreen() {
                 {loading ? (
                     <ActivityIndicator color="#000" />
                 ) : (
-                    <Text style={styles.saveButtonText}>SAVE SETTINGS</Text>
+                    <Text style={styles.saveButtonText}>TEST CONNECTION</Text>
                 )}
             </TouchableOpacity>
+
+            {/* Network */}
+            <Text style={styles.sectionHeader}>Network</Text>
+            <View style={styles.toggleRow}>
+                <View style={styles.toggleInfo}>
+                    <Text style={styles.toggleLabel}>WiFi Only</Text>
+                    <Text style={styles.toggleSub}>Only stream and download over WiFi</Text>
+                </View>
+                <TouchableOpacity onPress={() => setWifiOnly(!wifiOnly)}>
+                    {wifiOnly
+                        ? <ToggleRight size={28} color={theme.colors.accent} />
+                        : <ToggleLeft size={28} color={theme.colors.textSecondary} />
+                    }
+                </TouchableOpacity>
+            </View>
 
             {/* Cache Folder */}
             <Text style={styles.sectionHeader}>Storage</Text>
@@ -193,11 +206,11 @@ export default function SettingsScreen() {
                     </Text>
                 </View>
                 <TouchableOpacity onPress={pickCacheFolder} style={styles.folderBtn}>
-                    <Ionicons name="folder-open-outline" size={22} color={theme.colors.accent} />
+                    <FolderOpen size={22} color={theme.colors.accent} />
                 </TouchableOpacity>
                 {cacheDir && (
                     <TouchableOpacity onPress={resetCacheFolder} style={styles.folderBtn}>
-                        <Ionicons name="close-circle-outline" size={22} color={theme.colors.error} />
+                        <XCircle size={22} color={theme.colors.accent} />
                     </TouchableOpacity>
                 )}
             </View>
@@ -210,17 +223,17 @@ export default function SettingsScreen() {
                         <Text style={styles.folderPath} numberOfLines={1}>{uri}</Text>
                     </View>
                     <TouchableOpacity onPress={() => removeMusicFolder(uri)} style={styles.folderBtn}>
-                        <Ionicons name="trash-outline" size={22} color={theme.colors.error} />
+                        <Trash2 size={22} color={theme.colors.accent} />
                     </TouchableOpacity>
                 </View>
             ))}
             <TouchableOpacity style={styles.addFolderBtn} onPress={pickMusicFolder}>
-                <Ionicons name="add-circle-outline" size={20} color={theme.colors.accent} />
+                <PlusCircle size={20} color={theme.colors.accent} />
                 <Text style={styles.addFolderText}>Add Music Folder</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                <Ionicons name="log-out-outline" size={20} color={theme.colors.error} />
+                <LogOut size={20} color={theme.colors.accent} />
                 <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
         </ScrollView>
@@ -234,12 +247,6 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: theme.spacing.lg,
-    },
-    header: {
-        fontSize: theme.fontSize.xxl,
-        fontWeight: 'bold',
-        color: theme.colors.textPrimary,
-        marginBottom: theme.spacing.xl,
     },
     formGroup: {
         marginBottom: theme.spacing.lg,
@@ -309,6 +316,28 @@ const styles = StyleSheet.create({
         marginTop: theme.spacing.xl,
         marginBottom: theme.spacing.sm,
     },
+    toggleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme.colors.player,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        padding: theme.spacing.md,
+        marginBottom: theme.spacing.sm,
+    },
+    toggleInfo: {
+        flex: 1,
+        gap: 3,
+    },
+    toggleLabel: {
+        color: theme.colors.textPrimary,
+        fontSize: theme.fontSize.md,
+    },
+    toggleSub: {
+        color: theme.colors.textSecondary,
+        fontSize: theme.fontSize.sm,
+    },
     folderRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -349,7 +378,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     logoutText: {
-        color: theme.colors.error,
+        color: theme.colors.accent,
         fontSize: theme.fontSize.md,
         fontWeight: '500',
     }

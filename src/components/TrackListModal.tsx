@@ -1,6 +1,6 @@
-import { Modal, View, Text, FlatList, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { Modal, View, Text, FlatList, TouchableOpacity, StyleSheet, Image, Animated, PanResponder } from 'react-native';
 import { useRef, useEffect, memo } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import { X, Music, Play } from 'lucide-react-native';
 import { usePlayerStore } from '../store/useStore';
 import { theme } from '../constants/theme';
 
@@ -13,31 +13,71 @@ interface Props {
 export default function TrackListModal({ visible, onClose, coverUrl }: Props) {
     const { queue, currentIndex, currentTrack, jumpTo } = usePlayerStore();
     const listRef = useRef<FlatList>(null);
+    const translateY = useRef(new Animated.Value(0)).current;
+    const atTopRef = useRef(true);
 
-    // Scroll to current track when modal opens
     useEffect(() => {
-        if (visible && currentIndex >= 0) {
+        if (visible) {
+            translateY.setValue(0);
+            atTopRef.current = true;
             setTimeout(() => {
-                listRef.current?.scrollToIndex({ index: currentIndex, animated: true, viewPosition: 0.3 });
+                listRef.current?.scrollToIndex({
+                    index: currentIndex >= 0 ? currentIndex : 0,
+                    animated: true,
+                    viewPosition: 0.3,
+                });
             }, 150);
         }
     }, [visible, currentIndex]);
 
-    return (
-        <Modal
-            visible={visible}
-            animationType="slide"
-            onRequestClose={onClose}
-        >
-            <View style={styles.container}>
+    const dismiss = () => {
+        Animated.timing(translateY, { toValue: 800, duration: 200, useNativeDriver: true }).start(onClose);
+    };
 
-                {/* Header */}
-                <View style={styles.header}>
+    const snapBack = () => {
+        Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
+    };
+
+    // Pan responder for the drag handle only
+    const handlePan = useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: (_, g) => g.dy > 5,
+            onPanResponderMove: (_, g) => {
+                if (g.dy > 0) translateY.setValue(g.dy);
+            },
+            onPanResponderRelease: (_, g) => {
+                if (g.dy > 100 || g.vy > 0.8) dismiss();
+                else snapBack();
+            },
+        })
+    ).current;
+
+    // Pan responder for the list — only activates when list is scrolled to top and pulling down
+    const listPan = useRef(
+        PanResponder.create({
+            onMoveShouldSetPanResponder: (_, g) => atTopRef.current && g.dy > 15 && g.dy > Math.abs(g.dx),
+            onPanResponderMove: (_, g) => {
+                if (g.dy > 0) translateY.setValue(g.dy);
+            },
+            onPanResponderRelease: (_, g) => {
+                if (g.dy > 100 || g.vy > 0.8) dismiss();
+                else snapBack();
+            },
+        })
+    ).current;
+
+    return (
+        <Modal visible={visible} animationType="slide" onRequestClose={onClose} transparent>
+            <Animated.View style={[styles.container, { transform: [{ translateY }] }]}>
+
+                {/* Drag handle */}
+                <View style={styles.header} {...handlePan.panHandlers}>
                     <View style={styles.handle} />
                     <View style={styles.headerRow}>
                         <Text style={styles.headerTitle}>Queue</Text>
                         <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                            <Ionicons name="close" size={26} color={theme.colors.textPrimary} />
+                            <X size={26} color={theme.colors.textPrimary} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -48,7 +88,7 @@ export default function TrackListModal({ visible, onClose, coverUrl }: Props) {
                         <View style={styles.heroCover}>
                             {coverUrl
                                 ? <Image source={{ uri: coverUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-                                : <Ionicons name="musical-note" size={36} color={theme.colors.textSecondary} />
+                                : <Music size={36} color={theme.colors.textSecondary} />
                             }
                         </View>
                         <View style={styles.heroInfo}>
@@ -62,25 +102,31 @@ export default function TrackListModal({ visible, onClose, coverUrl }: Props) {
                 <View style={styles.divider} />
 
                 {/* Track list */}
-                <FlatList
-                    ref={listRef}
-                    data={queue}
-                    keyExtractor={(_, i) => String(i)}
-                    contentContainerStyle={styles.list}
-                    onScrollToIndexFailed={() => {}}
-                    renderItem={({ item, index }) => {
-                        const isCurrent = index === currentIndex;
-                        return (
-                            <TrackRow
-                                title={item.title}
-                                artist={item.artist}
-                                isCurrent={isCurrent}
-                                onPress={() => { jumpTo(index); onClose(); }}
-                            />
-                        );
-                    }}
-                />
-            </View>
+                <View style={styles.listWrapper} {...listPan.panHandlers}>
+                    <FlatList
+                        ref={listRef}
+                        data={queue}
+                        keyExtractor={(_, i) => String(i)}
+                        contentContainerStyle={styles.list}
+                        onScrollToIndexFailed={() => {}}
+                        scrollEventThrottle={16}
+                        onScroll={(e) => {
+                            atTopRef.current = e.nativeEvent.contentOffset.y <= 0;
+                        }}
+                        renderItem={({ item, index }) => {
+                            const isCurrent = index === currentIndex;
+                            return (
+                                <TrackRow
+                                    title={item.title}
+                                    artist={item.artist}
+                                    isCurrent={isCurrent}
+                                    onPress={() => { jumpTo(index); onClose(); }}
+                                />
+                            );
+                        }}
+                    />
+                </View>
+            </Animated.View>
         </Modal>
     );
 }
@@ -95,21 +141,18 @@ const TrackRow = memo(({ title, artist, isCurrent, onPress }: {
     >
         <View style={styles.rowLeft}>
             {isCurrent
-                ? <Ionicons name="musical-note" size={16} color={theme.colors.accent} style={styles.rowIcon} />
+                ? <Music size={16} color={theme.colors.accent} style={styles.rowIcon} />
                 : <View style={styles.rowIconPlaceholder} />
             }
             <View style={styles.rowInfo}>
-                <Text
-                    style={[styles.rowTitle, isCurrent && styles.rowTitleActive]}
-                    numberOfLines={1}
-                >
+                <Text style={[styles.rowTitle, isCurrent && styles.rowTitleActive]} numberOfLines={1}>
                     {title}
                 </Text>
                 <Text style={styles.rowArtist} numberOfLines={1}>{artist}</Text>
             </View>
         </View>
         {!isCurrent && (
-            <Ionicons name="play-outline" size={18} color={theme.colors.textSecondary} />
+            <Play size={18} color={theme.colors.textSecondary} />
         )}
     </TouchableOpacity>
 ));
@@ -118,6 +161,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background,
+        marginTop: 40,
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+        overflow: 'hidden',
     },
     header: {
         paddingTop: theme.spacing.sm,
@@ -142,7 +189,6 @@ const styles = StyleSheet.create({
         fontSize: theme.fontSize.xl,
         fontWeight: 'bold',
     },
-    // Hero (now playing)
     hero: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -181,6 +227,9 @@ const styles = StyleSheet.create({
         backgroundColor: theme.colors.border,
         marginHorizontal: theme.spacing.md,
         marginBottom: theme.spacing.xs,
+    },
+    listWrapper: {
+        flex: 1,
     },
     list: {
         paddingHorizontal: theme.spacing.md,

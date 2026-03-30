@@ -1,13 +1,13 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { CloudOff } from 'lucide-react-native';
 import { theme } from '../constants/theme';
 
 export default function NoServer() {
     const router = useRouter();
     return (
         <View style={styles.container}>
-            <Ionicons name="cloud-offline-outline" size={48} color={theme.colors.textSecondary} />
+            <CloudOff size={48} color={theme.colors.textSecondary} />
             <Text style={styles.title}>No server configured</Text>
             <Text style={styles.subtitle}>Add a Navidrome server in Settings to stream music, or add a local music folder.</Text>
             <TouchableOpacity style={styles.button} onPress={() => router.push('/(tabs)/settings')}>

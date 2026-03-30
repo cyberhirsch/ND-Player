@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, memo, useRef } from 'react';
 import { getAlbums, getAlbum, getCoverArtUrl, getStarred } from '../../src/api/navidrome';
 import { usePlayerStore, useOfflineStore, useLibraryStore, useAuthStore, isAlbumCacheFresh } from '../../src/store/useStore';
 import { theme } from '../../src/constants/theme';
-import { Ionicons } from '@expo/vector-icons';
+import { Search, XCircle, Heart, CheckCircle2, Download, Trash2, Music2 } from 'lucide-react-native';
 import { downloadAlbum, deleteAlbum } from '../../src/utils/downloader';
 import NoServer from '../../src/components/NoServer';
 
@@ -241,15 +241,12 @@ export default function AlbumsScreen() {
                         onPress={() => isDownloaded ? handleDelete(item.id, item.title) : handleDownload(item.id, item.title)}
                         disabled={isDownloading}
                     >
-                        {isDownloading ? (
-                            <ActivityIndicator size="small" color={theme.colors.accent} />
-                        ) : (
-                            <Ionicons
-                                name={isDownloaded ? 'checkmark-circle' : 'download-outline'}
-                                size={24}
-                                color={isDownloaded ? theme.colors.accent : theme.colors.textSecondary}
-                            />
-                        )}
+                        {isDownloading
+                            ? <ActivityIndicator size="small" color={theme.colors.accent} />
+                            : isDownloaded
+                                ? <CheckCircle2 size={24} color={theme.colors.accent} />
+                                : <Download size={24} color={theme.colors.textSecondary} />
+                        }
                     </TouchableOpacity>
                 )}
 
@@ -258,7 +255,7 @@ export default function AlbumsScreen() {
                         style={styles.actionButton}
                         onPress={() => handleDelete(item.id, item.title)}
                     >
-                        <Ionicons name="trash-outline" size={24} color={theme.colors.textSecondary} />
+                        <Trash2 size={24} color={theme.colors.accent} />
                     </TouchableOpacity>
                 )}
             </View>
@@ -289,7 +286,7 @@ export default function AlbumsScreen() {
         <View style={styles.container}>
             <View style={styles.filterRow}>
                 <View style={styles.filterBar}>
-                    <Ionicons name="search" size={16} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
+                    <Search size={16} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
                     <TextInput
                         style={styles.filterInput}
                         placeholder={favoritesOnly ? 'Filter starred albums…' : 'Search albums…'}
@@ -302,16 +299,15 @@ export default function AlbumsScreen() {
                     />
                     {filter.length > 0 && (
                         <TouchableOpacity onPress={() => setFilter('')}>
-                            <Ionicons name="close-circle" size={16} color={theme.colors.textSecondary} />
+                            <XCircle size={16} color={theme.colors.textSecondary} />
                         </TouchableOpacity>
                     )}
                 </View>
                 <TouchableOpacity onPress={() => setFavoritesOnly(f => !f)} style={styles.heartBtn}>
-                    <Ionicons
-                        name={favoritesOnly ? 'heart' : 'heart-outline'}
-                        size={24}
-                        color={favoritesOnly ? theme.colors.error : theme.colors.textSecondary}
-                    />
+                    {favoritesOnly
+                        ? <Heart size={24} color={theme.colors.accent} fill={theme.colors.accent} />
+                        : <Heart size={24} color={theme.colors.textSecondary} />
+                    }
                 </TouchableOpacity>
             </View>
             {(bgLoading || loadingStarred) && (
@@ -357,7 +353,7 @@ const AlbumCover = memo(({ id, isOffline }: { id: string; isOffline: boolean }) 
 
     if (!url) return (
         <View style={[styles.cover, styles.placeholder]}>
-            <Ionicons name="musical-notes" size={32} color={theme.colors.border} />
+            <Music2 size={32} color={theme.colors.border} />
         </View>
     );
 

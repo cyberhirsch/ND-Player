@@ -4,7 +4,7 @@ import { getPlaylists, getPlaylist } from '../../src/api/navidrome';
 import { usePlayerStore, useOfflineStore, useAuthStore } from '../../src/store/useStore';
 import NoServer from '../../src/components/NoServer';
 import { theme } from '../../src/constants/theme';
-import { Ionicons } from '@expo/vector-icons';
+import { Music2, CheckCircle2, Download, Trash2, Play, Search, XCircle } from 'lucide-react-native';
 import { downloadPlaylist, deletePlaylist } from '../../src/utils/downloader';
 
 export default function PlaylistsScreen() {
@@ -117,7 +117,7 @@ export default function PlaylistsScreen() {
         return (
             <TouchableOpacity style={styles.item} onPress={() => playPlaylist(item.id)}>
                 <View style={styles.iconContainer}>
-                    <Ionicons name="musical-notes" size={24} color={theme.colors.textSecondary} />
+                    <Music2 size={24} color={theme.colors.textSecondary} />
                 </View>
                 <View style={styles.info}>
                     <Text style={styles.title}>{item.name}</Text>
@@ -138,11 +138,9 @@ export default function PlaylistsScreen() {
                         {isDownloading ? (
                             <ActivityIndicator size="small" color={theme.colors.accent} />
                         ) : (
-                            <Ionicons
-                                name={isDownloaded ? 'checkmark-circle' : 'download-outline'}
-                                size={24}
-                                color={isDownloaded ? theme.colors.accent : theme.colors.textSecondary}
-                            />
+                            isDownloaded
+                                ? <CheckCircle2 size={24} color={theme.colors.accent} />
+                                : <Download size={24} color={theme.colors.textSecondary} />
                         )}
                     </TouchableOpacity>
                 )}
@@ -155,10 +153,10 @@ export default function PlaylistsScreen() {
                         }}
                         style={{ marginRight: 8 }}
                     >
-                        <Ionicons name="trash-outline" size={24} color={theme.colors.textSecondary} />
+                        <Trash2 size={24} color={theme.colors.accent} />
                     </TouchableOpacity>
                 ) : (
-                    <Ionicons name="play-circle-outline" size={24} color={theme.colors.accent} />
+                    <Play size={24} color={theme.colors.accent} />
                 )}
             </TouchableOpacity>
         );
@@ -182,7 +180,7 @@ export default function PlaylistsScreen() {
     return (
         <View style={styles.container}>
             <View style={styles.filterBar}>
-                <Ionicons name="search" size={16} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
+                <Search size={16} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
                 <TextInput
                     style={styles.filterInput}
                     placeholder="Filter playlists…"
@@ -195,7 +193,7 @@ export default function PlaylistsScreen() {
                 />
                 {filter.length > 0 && (
                     <TouchableOpacity onPress={() => setFilter('')}>
-                        <Ionicons name="close-circle" size={16} color={theme.colors.textSecondary} />
+                        <XCircle size={16} color={theme.colors.textSecondary} />
                     </TouchableOpacity>
                 )}
             </View>

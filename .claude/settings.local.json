@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s \"http://cyberhirsch.duckdns.org:4533/rest/getPlaylists.view?u=test&t=eb5b120cc98f41a7dd5e0e6181e60942&s=abc123&v=1.16.1&c=NDPlayer&f=json\")",
+      "Bash(python -m json.tool)",
+      "Bash(curl -s \"http://cyberhirsch.duckdns.org:4533/rest/getStarred2.view?u=test&t=eb5b120cc98f41a7dd5e0e6181e60942&s=abc123&v=1.16.1&c=NDPlayer&f=json\")",
+      "WebFetch(domain:job-logs.eascdn.net)",
+      "Bash(eas build:*)",
+      "Bash(java -version)",
+      "Bash(echo $JAVA_HOME)",
+      "Bash(where gradle:*)",
+      "Bash(wsl bash:*)",
+      "Bash(wsl sudo:*)",
+      "Bash(npm ci:*)"
+    ]
+  }
+}
