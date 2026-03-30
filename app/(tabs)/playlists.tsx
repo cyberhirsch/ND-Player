@@ -1,7 +1,8 @@
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, TextInput } from 'react-native';
 import { useEffect, useState, useCallback } from 'react';
 import { getPlaylists, getPlaylist } from '../../src/api/navidrome';
-import { usePlayerStore, useOfflineStore } from '../../src/store/useStore';
+import { usePlayerStore, useOfflineStore, useAuthStore } from '../../src/store/useStore';
+import NoServer from '../../src/components/NoServer';
 import { theme } from '../../src/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { downloadPlaylist, deletePlaylist } from '../../src/utils/downloader';
@@ -11,6 +12,7 @@ export default function PlaylistsScreen() {
     const [loading, setLoading] = useState(true);
     const [downloadingPlaylists, setDownloadingPlaylists] = useState<Record<string, boolean>>({});
     const [filter, setFilter] = useState('');
+    const serverUrl = useAuthStore((state) => state.serverUrl);
     const setQueue = usePlayerStore((state) => state.setQueue);
     const isOfflineMode = useOfflineStore((state) => state.isOfflineMode);
     const downloadedPlaylists = useOfflineStore((state) => state.downloadedPlaylists);
@@ -161,6 +163,8 @@ export default function PlaylistsScreen() {
             </TouchableOpacity>
         );
     }, [isOfflineMode, downloadingPlaylists, isPlaylistDownloaded, playPlaylist, handleDownload, handleDelete]);
+
+    if (!serverUrl && !isOfflineMode) return <NoServer />;
 
     if (loading) {
         return (

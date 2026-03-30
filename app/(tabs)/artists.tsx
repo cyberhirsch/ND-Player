@@ -5,8 +5,9 @@ import {
 import { useEffect, useState, useCallback, memo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { getArtists, getArtist, getAlbum, getCoverArtUrl } from '../../src/api/navidrome';
-import { usePlayerStore } from '../../src/store/useStore';
+import { usePlayerStore, useAuthStore } from '../../src/store/useStore';
 import { theme } from '../../src/constants/theme';
+import NoServer from '../../src/components/NoServer';
 
 export default function ArtistsScreen() {
     const [artists, setArtists] = useState<any[]>([]);
@@ -25,6 +26,8 @@ export default function ArtistsScreen() {
     const displayed = q
         ? artists.filter(a => a.name?.toLowerCase().includes(q))
         : artists;
+
+    if (!serverUrl) return <NoServer />;
 
     if (loading) {
         return (
@@ -96,6 +99,7 @@ const ArtistRow = memo(({ item, onPress }: { item: any; onPress: () => void }) =
 function ArtistModal({ artist, onClose }: { artist: any; onClose: () => void }) {
     const [albums, setAlbums] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const serverUrl = useAuthStore((state) => state.serverUrl);
     const setQueue = usePlayerStore(state => state.setQueue);
 
     useEffect(() => {

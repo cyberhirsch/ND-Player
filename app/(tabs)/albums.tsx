@@ -1,10 +1,11 @@
 import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Dimensions, Alert, TextInput } from 'react-native';
 import { useEffect, useState, useCallback, memo, useRef } from 'react';
 import { getAlbums, getAlbum, getCoverArtUrl, getStarred } from '../../src/api/navidrome';
-import { usePlayerStore, useOfflineStore, useLibraryStore, isAlbumCacheFresh } from '../../src/store/useStore';
+import { usePlayerStore, useOfflineStore, useLibraryStore, useAuthStore, isAlbumCacheFresh } from '../../src/store/useStore';
 import { theme } from '../../src/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { downloadAlbum, deleteAlbum } from '../../src/utils/downloader';
+import NoServer from '../../src/components/NoServer';
 
 const PAGE_SIZE = 50;
 const numColumns = 2;
@@ -26,6 +27,7 @@ export default function AlbumsScreen() {
     const fetchingRef = useRef(false);
     const bgFetchingRef = useRef(false);
 
+    const serverUrl = useAuthStore((state) => state.serverUrl);
     const setQueue = usePlayerStore((state) => state.setQueue);
     const isOfflineMode = useOfflineStore((state) => state.isOfflineMode);
     const downloadedAlbums = useOfflineStore((state) => state.downloadedAlbums);
@@ -262,6 +264,8 @@ export default function AlbumsScreen() {
             </View>
         );
     }, [isOfflineMode, downloadingAlbums, isAlbumDownloaded, playAlbum, handleDownload, handleDelete]);
+
+    if (!serverUrl && !isOfflineMode) return <NoServer />;
 
     if (loading) {
         return (

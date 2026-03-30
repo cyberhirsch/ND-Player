@@ -5,8 +5,9 @@ import {
 import { useEffect, useState, useRef, useCallback, memo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { getSongs, getStarred, search, getCoverArtUrl } from '../../src/api/navidrome';
-import { usePlayerStore, useOfflineStore } from '../../src/store/useStore';
+import { usePlayerStore, useOfflineStore, useAuthStore } from '../../src/store/useStore';
 import { theme } from '../../src/constants/theme';
+import NoServer from '../../src/components/NoServer';
 
 const PAGE_SIZE = 50;
 
@@ -23,6 +24,7 @@ export default function SongsScreen() {
     const fetchingRef = useRef(false);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    const serverUrl = useAuthStore((state) => state.serverUrl);
     const setQueue = usePlayerStore((state) => state.setQueue);
     const isOfflineMode = useOfflineStore((state) => state.isOfflineMode);
 
@@ -128,6 +130,8 @@ export default function SongsScreen() {
     })();
 
     const isSearching = !favoritesOnly && !!q;
+
+    if (!serverUrl) return <NoServer />;
 
     if (loading) {
         return (

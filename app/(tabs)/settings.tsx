@@ -119,6 +119,12 @@ export default function SettingsScreen() {
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+            {!serverUrl && (
+                <View style={styles.welcomeBanner}>
+                    <Text style={styles.welcomeTitle}>Welcome to ND Player</Text>
+                    <Text style={styles.welcomeText}>Connect to a Navidrome server to stream music, or add a local music folder below. You can use all features without a server.</Text>
+                </View>
+            )}
             <Text style={styles.header}>Server Settings</Text>
 
             <View style={styles.formGroup}>
@@ -274,6 +280,25 @@ const styles = StyleSheet.create({
     },
     error: {
         color: theme.colors.error,
+    },
+    welcomeBanner: {
+        backgroundColor: theme.colors.player,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: theme.colors.accent,
+        padding: theme.spacing.lg,
+        marginBottom: theme.spacing.xl,
+        gap: 8,
+    },
+    welcomeTitle: {
+        color: theme.colors.accent,
+        fontSize: theme.fontSize.lg,
+        fontWeight: 'bold',
+    },
+    welcomeText: {
+        color: theme.colors.textSecondary,
+        fontSize: theme.fontSize.md,
+        lineHeight: 22,
     },
     sectionHeader: {
         color: theme.colors.textSecondary,

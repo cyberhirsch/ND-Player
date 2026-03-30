@@ -1,13 +1,14 @@
 import { Stack } from 'expo-router';
 import { useEffect } from 'react';
-import { useAuthStore } from '../src/store/useStore';
+import { useAuthStore, useSettingsStore } from '../src/store/useStore';
 import { useRouter, useSegments } from 'expo-router';
 import { Audio } from 'expo-av';
 import { StatusBar } from 'expo-status-bar';
 import { theme } from '../src/constants/theme';
 
 export default function RootLayout() {
-    const { isAuthenticated } = useAuthStore();
+    const { serverUrl } = useAuthStore();
+    const { musicFolders } = useSettingsStore();
     const segments = useSegments();
     const router = useRouter();
 
@@ -20,17 +21,19 @@ export default function RootLayout() {
     }, []);
 
     useEffect(() => {
-        // Don't navigate until the layout is mounted
         if (!segments || segments.length === 0) return;
 
         const inTabsGroup = segments[0] === '(tabs)';
 
-        if (isAuthenticated && !inTabsGroup) {
-            router.replace('/(tabs)/albums');
-        } else if (!isAuthenticated && inTabsGroup) {
-            router.replace('/');
+        if (!inTabsGroup) {
+            // Go to albums if server or local music is configured, otherwise settings
+            if (serverUrl || musicFolders.length > 0) {
+                router.replace('/(tabs)/albums');
+            } else {
+                router.replace('/(tabs)/settings');
+            }
         }
-    }, [isAuthenticated, segments]);
+    }, [segments]);
 
     return (
         <>
