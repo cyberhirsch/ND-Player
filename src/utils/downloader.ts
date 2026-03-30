@@ -1,6 +1,11 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { getStreamUrl, getAlbum, getPlaylist, getCoverArtUrl } from '../api/navidrome';
-import { useOfflineStore, DownloadedAlbum, DownloadedPlaylist, Track } from '../store/useStore';
+import { useOfflineStore, useSettingsStore, DownloadedAlbum, DownloadedPlaylist, Track } from '../store/useStore';
+
+const getCacheDir = (): string => {
+    const custom = useSettingsStore.getState().cacheDir;
+    return custom ?? (FileSystem.documentDirectory as string);
+};
 
 export interface DownloadProgress {
     current: number;
@@ -11,7 +16,7 @@ export interface DownloadProgress {
 export const downloadTrack = async (trackId: string) => {
     try {
         const url = await getStreamUrl(trackId);
-        const fileUri = FileSystem.documentDirectory + trackId;
+        const fileUri = getCacheDir() + trackId;
 
         // Use the new downloadAsync API instead of deprecated createDownloadResumable
         const result = await FileSystem.downloadAsync(url, fileUri);
@@ -65,7 +70,7 @@ export const downloadAlbum = async (
 
         // Download cover art
         const coverUrl = await getCoverArtUrl(album.coverArt);
-        const coverUri = FileSystem.documentDirectory + `cover_${album.coverArt}.jpg`;
+        const coverUri = getCacheDir() + `cover_${album.coverArt}.jpg`;
         await FileSystem.downloadAsync(coverUrl, coverUri);
 
         const trackList: Track[] = album.song

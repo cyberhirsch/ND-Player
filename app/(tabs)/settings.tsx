@@ -1,13 +1,15 @@
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { useState, useEffect } from 'react';
-import { useAuthStore } from '../../src/store/useStore';
+import { useAuthStore, useSettingsStore } from '../../src/store/useStore';
 import * as SecureStore from 'expo-secure-store';
+import * as FileSystem from 'expo-file-system/legacy';
 import { theme } from '../../src/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { ping } from '../../src/api/navidrome';
 
 export default function SettingsScreen() {
     const { serverUrl, username, setAuth, logout } = useAuthStore();
+    const { cacheDir, musicFolders, setCacheDir, addMusicFolder, removeMusicFolder } = useSettingsStore();
     const [url, setUrl] = useState(serverUrl || '');
     const [user, setUser] = useState(username || '');
     const [pass, setPass] = useState('');
@@ -86,6 +88,35 @@ export default function SettingsScreen() {
         logout();
     };
 
+    const pickCacheFolder = async () => {
+        try {
+            const result = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+            if (result.granted) {
+                setCacheDir(result.directoryUri + '/');
+            }
+        } catch (e) {
+            Alert.alert('Error', 'Could not open folder picker');
+        }
+    };
+
+    const resetCacheFolder = () => {
+        Alert.alert('Reset Cache Folder', 'Use default app storage?', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Reset', onPress: () => setCacheDir(null) }
+        ]);
+    };
+
+    const pickMusicFolder = async () => {
+        try {
+            const result = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+            if (result.granted) {
+                addMusicFolder(result.directoryUri);
+            }
+        } catch (e) {
+            Alert.alert('Error', 'Could not open folder picker');
+        }
+    };
+
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
             <Text style={styles.header}>Server Settings</Text>
@@ -144,6 +175,42 @@ export default function SettingsScreen() {
                 ) : (
                     <Text style={styles.saveButtonText}>SAVE SETTINGS</Text>
                 )}
+            </TouchableOpacity>
+
+            {/* Cache Folder */}
+            <Text style={styles.sectionHeader}>Storage</Text>
+            <View style={styles.folderRow}>
+                <View style={styles.folderInfo}>
+                    <Text style={styles.label}>Cache Folder</Text>
+                    <Text style={styles.folderPath} numberOfLines={1}>
+                        {cacheDir ? cacheDir : 'Default app storage'}
+                    </Text>
+                </View>
+                <TouchableOpacity onPress={pickCacheFolder} style={styles.folderBtn}>
+                    <Ionicons name="folder-open-outline" size={22} color={theme.colors.accent} />
+                </TouchableOpacity>
+                {cacheDir && (
+                    <TouchableOpacity onPress={resetCacheFolder} style={styles.folderBtn}>
+                        <Ionicons name="close-circle-outline" size={22} color={theme.colors.error} />
+                    </TouchableOpacity>
+                )}
+            </View>
+
+            {/* Music Folders */}
+            <Text style={styles.sectionHeader}>Local Music</Text>
+            {musicFolders.map((uri) => (
+                <View key={uri} style={styles.folderRow}>
+                    <View style={styles.folderInfo}>
+                        <Text style={styles.folderPath} numberOfLines={1}>{uri}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => removeMusicFolder(uri)} style={styles.folderBtn}>
+                        <Ionicons name="trash-outline" size={22} color={theme.colors.error} />
+                    </TouchableOpacity>
+                </View>
+            ))}
+            <TouchableOpacity style={styles.addFolderBtn} onPress={pickMusicFolder}>
+                <Ionicons name="add-circle-outline" size={20} color={theme.colors.accent} />
+                <Text style={styles.addFolderText}>Add Music Folder</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
@@ -207,6 +274,47 @@ const styles = StyleSheet.create({
     },
     error: {
         color: theme.colors.error,
+    },
+    sectionHeader: {
+        color: theme.colors.textSecondary,
+        fontSize: theme.fontSize.sm,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginTop: theme.spacing.xl,
+        marginBottom: theme.spacing.sm,
+    },
+    folderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme.colors.player,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        padding: theme.spacing.md,
+        marginBottom: theme.spacing.sm,
+    },
+    folderInfo: {
+        flex: 1,
+    },
+    folderPath: {
+        color: theme.colors.textSecondary,
+        fontSize: theme.fontSize.sm,
+        marginTop: 2,
+    },
+    folderBtn: {
+        padding: 4,
+        marginLeft: 8,
+    },
+    addFolderBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingVertical: theme.spacing.sm,
+    },
+    addFolderText: {
+        color: theme.colors.accent,
+        fontSize: theme.fontSize.md,
     },
     logoutButton: {
         flexDirection: 'row',

@@ -70,6 +70,36 @@ interface OfflineState {
   isPlaylistDownloaded: (id: string) => boolean;
 }
 
+interface SettingsState {
+  cacheDir: string | null;
+  musicFolders: string[];
+  setCacheDir: (dir: string | null) => void;
+  addMusicFolder: (uri: string) => void;
+  removeMusicFolder: (uri: string) => void;
+}
+
+export const useSettingsStore = create<SettingsState>()(
+  persist(
+    (set, get) => ({
+      cacheDir: null,
+      musicFolders: [],
+      setCacheDir: (dir) => set({ cacheDir: dir }),
+      addMusicFolder: (uri) => set((state) => ({
+        musicFolders: state.musicFolders.includes(uri)
+          ? state.musicFolders
+          : [...state.musicFolders, uri]
+      })),
+      removeMusicFolder: (uri) => set((state) => ({
+        musicFolders: state.musicFolders.filter(f => f !== uri)
+      })),
+    }),
+    {
+      name: 'settings-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+);
+
 interface AlbumCache {
   data: any[];
   timestamp: number;
