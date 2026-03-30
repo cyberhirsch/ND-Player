@@ -42,6 +42,7 @@ yarn-error.*
 
 # Claude Code
 .claude/
+CLAUDE.md
 
 # Local notes
 tasks.md
