@@ -55,7 +55,7 @@ export default function AlbumsScreen() {
     const loadAlbums = async () => {
         setLoading(true);
         try {
-            if (isOfflineMode) {
+            if (isOfflineMode || !serverUrl) {
                 const downloaded = Object.values(downloadedAlbums);
                 setAlbums(downloaded.map(d => ({
                     id: d.id, title: d.title, artist: d.artist, coverArt: d.coverArt
@@ -235,7 +235,7 @@ export default function AlbumsScreen() {
                     </View>
                 </TouchableOpacity>
 
-                {!isOfflineMode && (
+                {!isOfflineMode && serverUrl && (
                     <TouchableOpacity
                         style={styles.actionButton}
                         onPress={() => isDownloaded ? handleDelete(item.id, item.title) : handleDownload(item.id, item.title)}
@@ -250,7 +250,7 @@ export default function AlbumsScreen() {
                     </TouchableOpacity>
                 )}
 
-                {isOfflineMode && (
+                {(isOfflineMode || !serverUrl) && isDownloaded && (
                     <TouchableOpacity
                         style={styles.actionButton}
                         onPress={() => handleDelete(item.id, item.title)}
@@ -262,7 +262,6 @@ export default function AlbumsScreen() {
         );
     }, [isOfflineMode, downloadingAlbums, isAlbumDownloaded, playAlbum, handleDownload, handleDelete]);
 
-    if (!serverUrl && !isOfflineMode) return <NoServer />;
 
     if (loading) {
         return (

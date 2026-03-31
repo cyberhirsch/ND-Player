@@ -19,11 +19,7 @@
     "android": {
       "package": "com.ndplayer.app",
       "versionCode": 3,
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#121212"
-      },
-      "edgeToEdgeEnabled": true,
+"edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "usesCleartextTraffic": true,
       "permissions": [

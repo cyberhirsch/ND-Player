@@ -2,7 +2,6 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, 
 import { useEffect, useState, useCallback } from 'react';
 import { getPlaylists, getPlaylist } from '../../src/api/navidrome';
 import { usePlayerStore, useOfflineStore, useAuthStore } from '../../src/store/useStore';
-import NoServer from '../../src/components/NoServer';
 import { theme } from '../../src/constants/theme';
 import { Music2, CheckCircle2, Download, Trash2, Play, Search, XCircle } from 'lucide-react-native';
 import { downloadPlaylist, deletePlaylist } from '../../src/utils/downloader';
@@ -25,7 +24,7 @@ export default function PlaylistsScreen() {
     const loadPlaylists = async () => {
         setLoading(true);
         try {
-            if (isOfflineMode) {
+            if (isOfflineMode || !serverUrl) {
                 // Show only downloaded playlists
                 const downloaded = Object.values(downloadedPlaylists);
                 setPlaylists(downloaded.map(d => ({
@@ -126,7 +125,7 @@ export default function PlaylistsScreen() {
                     </Text>
                 </View>
 
-                {!isOfflineMode && (
+                {!isOfflineMode && serverUrl && (
                     <TouchableOpacity
                         onPress={(e) => {
                             e.stopPropagation();
@@ -145,7 +144,7 @@ export default function PlaylistsScreen() {
                     </TouchableOpacity>
                 )}
 
-                {isOfflineMode ? (
+                {(isOfflineMode || !serverUrl) ? (
                     <TouchableOpacity
                         onPress={(e) => {
                             e.stopPropagation();
@@ -162,7 +161,6 @@ export default function PlaylistsScreen() {
         );
     }, [isOfflineMode, downloadingPlaylists, isPlaylistDownloaded, playPlaylist, handleDownload, handleDelete]);
 
-    if (!serverUrl && !isOfflineMode) return <NoServer />;
 
     if (loading) {
         return (

@@ -7,7 +7,6 @@ import { Search, XCircle, User, ChevronRight, X, Play, Music2, Download, CheckCi
 import { getArtists, getArtist, getAlbum, getCoverArtUrl } from '../../src/api/navidrome';
 import { usePlayerStore, useAuthStore, useOfflineStore } from '../../src/store/useStore';
 import { theme } from '../../src/constants/theme';
-import NoServer from '../../src/components/NoServer';
 import { downloadAlbum, deleteAlbum } from '../../src/utils/downloader';
 
 export default function ArtistsScreen() {
@@ -18,18 +17,17 @@ export default function ArtistsScreen() {
     const serverUrl = useAuthStore((state) => state.serverUrl);
 
     useEffect(() => {
+        if (!serverUrl) { setLoading(false); return; }
         getArtists()
             .then(data => setArtists(data))
             .catch(e => console.error(e))
             .finally(() => setLoading(false));
-    }, []);
+    }, [serverUrl]);
 
     const q = filter.trim().toLowerCase();
     const displayed = q
         ? artists.filter(a => a.name?.toLowerCase().includes(q))
         : artists;
-
-    if (!serverUrl) return <NoServer />;
 
     if (loading) {
         return (
@@ -67,6 +65,13 @@ export default function ArtistsScreen() {
                 renderItem={({ item }) => (
                     <ArtistRow item={item} onPress={() => setSelectedArtist(item)} />
                 )}
+                ListEmptyComponent={
+                    <View style={styles.empty}>
+                        <Text style={styles.emptyText}>
+                            {serverUrl ? 'No artists found' : 'No music'}
+                        </Text>
+                    </View>
+                }
             />
 
             {selectedArtist && (
@@ -307,6 +312,15 @@ const styles = StyleSheet.create({
     list: {
         paddingHorizontal: theme.spacing.md,
         paddingVertical: theme.spacing.sm,
+    },
+    empty: {
+        flex: 1,
+        alignItems: 'center',
+        paddingTop: 80,
+    },
+    emptyText: {
+        color: theme.colors.textSecondary,
+        fontSize: theme.fontSize.md,
     },
     row: {
         flexDirection: 'row',

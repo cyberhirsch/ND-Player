@@ -27,6 +27,7 @@ export default function SongsScreen() {
     const serverUrl = useAuthStore((state) => state.serverUrl);
     const setQueue = usePlayerStore((state) => state.setQueue);
     const isOfflineMode = useOfflineStore((state) => state.isOfflineMode);
+    const downloadedAlbums = useOfflineStore((state) => state.downloadedAlbums);
 
     useEffect(() => {
         if (!isOfflineMode) {
@@ -56,6 +57,14 @@ export default function SongsScreen() {
 
     const loadInitial = async () => {
         setLoading(true);
+        if (!serverUrl) {
+            // No server: show tracks from downloaded albums
+            const tracks = Object.values(downloadedAlbums).flatMap(a => a.trackList ?? []);
+            setAllSongs(tracks);
+            setHasMore(false);
+            setLoading(false);
+            return;
+        }
         // Load both independently so one failure doesn't block the other
         const [songsResult, starredResult] = await Promise.allSettled([
             getSongs(0, PAGE_SIZE),
@@ -77,7 +86,7 @@ export default function SongsScreen() {
     };
 
     const loadMore = async () => {
-        if (!hasMore || loadingMore || fetchingRef.current || favoritesOnly || filter.trim()) return;
+        if (!hasMore || loadingMore || fetchingRef.current || favoritesOnly || filter.trim() || !serverUrl) return;
         fetchingRef.current = true;
         setLoadingMore(true);
         try {
@@ -97,6 +106,7 @@ export default function SongsScreen() {
     };
 
     const runSearch = async (q: string) => {
+        if (!serverUrl) return;
         setSearching(true);
         try {
             const results = await search(q, 0, 50);
@@ -130,8 +140,6 @@ export default function SongsScreen() {
     })();
 
     const isSearching = !favoritesOnly && !!q;
-
-    if (!serverUrl) return <NoServer />;
 
     if (loading) {
         return (
@@ -200,8 +208,8 @@ export default function SongsScreen() {
                                 </>
                             ) : isSearching ? (
                                 <Text style={styles.emptyText}>No songs found for "{filter.trim()}"</Text>
-                            ) : isOfflineMode ? (
-                                <Text style={styles.emptyText}>Not available in offline mode</Text>
+                            ) : isOfflineMode || !serverUrl ? (
+                                <Text style={styles.emptyText}>No downloaded music</Text>
                             ) : (
                                 <Text style={styles.emptyText}>No songs found</Text>
                             )}

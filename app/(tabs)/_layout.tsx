@@ -38,8 +38,9 @@ export default function TabsLayout() {
                         borderTopColor: theme.colors.border,
                         height: 60,
                         paddingBottom: 8,
-                        paddingTop: 8
+                        paddingTop: 8,
                     },
+                    tabBarIndicatorStyle: { height: 0 },
                     tabBarActiveTintColor: theme.colors.accent,
                     tabBarInactiveTintColor: theme.colors.textSecondary,
                 }}
