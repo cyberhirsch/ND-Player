@@ -3,7 +3,8 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import TrackPlayer, { RepeatMode as RNTPRepeatMode } from 'react-native-track-player';
-import { getAuthParamsRaw, buildStreamUrl, buildCoverArtUrlSync } from '../api/navidrome';
+import md5 from 'md5';
+import { buildStreamUrl, buildCoverArtUrlSync } from '../utils/urlBuilder';
 
 export interface Track {
   id: string;
@@ -216,9 +217,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setQueue: async (tracks: Track[], startIndex = 0) => {
     set({ queue: tracks, currentIndex: startIndex, currentTrack: tracks[startIndex] || null, isPlaying: false });
     try {
-      const { serverUrl } = useAuthStore.getState();
+      const { serverUrl, username } = useAuthStore.getState();
       const { downloadedTracks } = useOfflineStore.getState();
-      const params = serverUrl ? await getAuthParamsRaw() : null;
+      let params: Record<string, string> | null = null;
+      if (serverUrl && username) {
+        const password = await SecureStore.getItemAsync('password');
+        if (password) {
+          const salt = Math.random().toString(36).substring(2, 15);
+          params = { u: username, t: md5(password + salt), s: salt, v: '1.16.1', c: 'NDPlayer', f: 'json' };
+        }
+      }
 
       const rntpTracks = tracks.map(t => ({
         id: t.id,
