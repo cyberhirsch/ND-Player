@@ -5,7 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as FileSystem from 'expo-file-system/legacy';
 import { theme } from '../../src/constants/theme';
 import { FolderOpen, XCircle, Trash2, PlusCircle, LogOut, ToggleLeft, ToggleRight } from 'lucide-react-native';
-import { ping } from '../../src/api/navidrome';
+import { checkConnection, ConnectionStatus } from '../../src/api/navidrome';
 
 export default function SettingsScreen() {
     const { serverUrl, username, setAuth, logout } = useAuthStore();
@@ -40,45 +40,68 @@ export default function SettingsScreen() {
         setLoading(true);
         setMessage(null);
 
-        let serverUrl = url.trim();
+        let cleanUrl = url.trim();
+        if (cleanUrl.endsWith('/')) cleanUrl = cleanUrl.slice(0, -1);
+        if (cleanUrl.endsWith('/app')) cleanUrl = cleanUrl.slice(0, -4);
 
-        // Clean up the URL
-        if (serverUrl.endsWith('/')) {
-            serverUrl = serverUrl.slice(0, -1);
-        }
-        if (serverUrl.endsWith('/app')) {
-            serverUrl = serverUrl.slice(0, -4);
-        }
+        const hasProtocol = cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://');
+        // Try HTTPS first, fall back to HTTP if no protocol specified
+        const urlsToTry = hasProtocol
+            ? [cleanUrl]
+            : [`https://${cleanUrl}`, `http://${cleanUrl}`];
 
-        // Determine protocol strategy (matching login screen behavior)
-        let urlsToTry: string[] = [];
-
-        if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
-            // User explicitly specified protocol, use it
-            urlsToTry = [serverUrl];
-        } else {
-            // No protocol specified - try HTTPS first, then HTTP
-            urlsToTry = [`https://${serverUrl}`, `http://${serverUrl}`];
-        }
-
-        let lastSuccess = false;
-        let successfulUrl: string | null = null;
+        let successUrl: string | null = null;
+        let lastResult = null as Awaited<ReturnType<typeof checkConnection>> | null;
+        let httpsConnectionFailed = false;
 
         for (const testUrl of urlsToTry) {
-            const success = await ping(testUrl, user, pass);
-            if (success) {
-                lastSuccess = true;
-                successfulUrl = testUrl;
+            const result = await checkConnection(testUrl, user, pass);
+            lastResult = result;
+
+            if (result.status === ConnectionStatus.SUCCESS) {
+                successUrl = testUrl;
                 break;
+            }
+            // Auth error is definitive — wrong credentials, no point trying another protocol
+            if (result.status === ConnectionStatus.AUTH_ERROR) break;
+            // Track HTTPS connection failures to suggest http:// hint
+            if (testUrl.startsWith('https://') && result.status === ConnectionStatus.CONNECTION_ERROR) {
+                httpsConnectionFailed = true;
             }
         }
 
-        if (lastSuccess && successfulUrl) {
+        if (successUrl) {
             await SecureStore.setItemAsync('password', pass);
-            setAuth(successfulUrl, user);
-            setMessage({ text: `Login successful · Connected as ${user}`, type: 'success' });
+            setAuth(successUrl, user);
+            setMessage({ text: `Connected as ${user}`, type: 'success' });
         } else {
-            setMessage({ text: 'Connection failed. Check credentials and server URL.', type: 'error' });
+            let errorText = 'Connection failed';
+            if (lastResult) {
+                switch (lastResult.status) {
+                    case ConnectionStatus.AUTH_ERROR:
+                        errorText = 'Wrong username or password';
+                        break;
+                    case ConnectionStatus.CONNECTION_ERROR: {
+                        const msg = lastResult.message ?? '';
+                        if (cleanUrl.startsWith('https://')) {
+                            errorText = 'HTTPS connection failed — your server may only support HTTP. Try adding http:// to the address.';
+                        } else if (msg.includes('timed out') || msg.includes('ECONNABORTED')) {
+                            errorText = 'Connection timed out — server unreachable. Check the address.';
+                        } else if (msg.includes('refused') || msg.includes('ECONNREFUSED')) {
+                            errorText = 'Connection refused — check the port number.';
+                        } else {
+                            errorText = 'Server unreachable — check the address and try again.';
+                        }
+                        break;
+                    }
+                    case ConnectionStatus.SERVER_ERROR:
+                        errorText = lastResult.message ?? 'Server returned an error';
+                        break;
+                    default:
+                        errorText = lastResult.message?.split('\n')[0] ?? 'Connection failed';
+                }
+            }
+            setMessage({ text: errorText, type: 'error' });
         }
         setLoading(false);
     };
