@@ -8,8 +8,11 @@ if not exist "%APK%" (
     exit /b 1
 )
 
+echo Force-stopping app (releases foreground service and widget lock)...
+adb shell am force-stop com.ndplayer.app
+
 echo Uninstalling existing version...
-adb uninstall com.ndplayer.app
+adb shell pm uninstall --user 0 com.ndplayer.app 2>nul || adb uninstall com.ndplayer.app
 
 echo Installing %APK%...
 adb install "%APK%"
