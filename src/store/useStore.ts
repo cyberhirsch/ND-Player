@@ -36,8 +36,10 @@ interface PlayerState {
 interface AuthState {
   serverUrl: string | null;
   username: string | null;
+  password: string | null;
   isAuthenticated: boolean;
-  setAuth: (url: string, user: string) => void;
+  setAuth: (url: string, user: string, pass?: string) => void;
+  setCredentials: (url: string, user: string, pass: string) => void;
   logout: () => void;
 }
 
@@ -158,9 +160,11 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       serverUrl: null,
       username: null,
+      password: null,
       isAuthenticated: false,
-      setAuth: (url, user) => set({ serverUrl: url, username: user, isAuthenticated: true }),
-      logout: () => set({ serverUrl: null, username: null, isAuthenticated: false }),
+      setAuth: (url, user, pass?) => set({ serverUrl: url, username: user, ...(pass !== undefined ? { password: pass } : {}), isAuthenticated: true }),
+      setCredentials: (url, user, pass) => set({ serverUrl: url, username: user, password: pass }),
+      logout: () => set({ serverUrl: null, username: null, password: null, isAuthenticated: false }),
     }),
     {
       name: 'auth-storage',

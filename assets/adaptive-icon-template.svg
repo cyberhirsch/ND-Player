@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+
+  <!-- Background (represents your icon background color) -->
+  <rect width="1024" height="1024" fill="#121212"/>
+
+  <!-- Outer boundary reminder lines -->
+  <rect x="0" y="0" width="1024" height="1024"
+        fill="none" stroke="#555555" stroke-width="2" stroke-dasharray="16,8"/>
+
+  <!-- Safe zone circle (66% = 676px diameter, centered at 512,512) -->
+  <circle cx="512" cy="512" r="338"
+          fill="none" stroke="#00FF00" stroke-width="3" stroke-dasharray="20,10"/>
+
+  <!-- Safe zone square equivalent (for square-mask launchers) -->
+  <rect x="174" y="174" width="676" height="676" rx="80"
+        fill="none" stroke="#FF9900" stroke-width="2" stroke-dasharray="12,8"/>
+
+  <!-- Center crosshair -->
+  <line x1="492" y1="512" x2="532" y2="512" stroke="#ffffff" stroke-width="1.5" opacity="0.5"/>
+  <line x1="512" y1="492" x2="512" y2="532" stroke="#ffffff" stroke-width="1.5" opacity="0.5"/>
+
+  <!-- Labels -->
+  <text x="512" y="62" text-anchor="middle" font-family="monospace" font-size="28" fill="#555555">1024 × 1024 — full canvas</text>
+
+  <text x="512" y="178" text-anchor="middle" font-family="monospace" font-size="22" fill="#00FF00">← safe zone circle (676px) →</text>
+  <text x="512" y="210" text-anchor="middle" font-family="monospace" font-size="18" fill="#00FF00">keep logo inside this</text>
+
+  <text x="512" y="880" text-anchor="middle" font-family="monospace" font-size="22" fill="#FF9900">rounded-square mask (some launchers)</text>
+
+  <text x="512" y="970" text-anchor="middle" font-family="monospace" font-size="20" fill="#444444">anything outside the green circle may be cut off</text>
+
+</svg>

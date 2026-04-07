@@ -18,8 +18,9 @@ const CLIENT_VERSION = '1.0.0';
 
 export const getAuthParams = async () => {
     await checkWifiPolicy();
-    const { serverUrl, username } = useAuthStore.getState();
-    const password = await SecureStore.getItemAsync('password');
+    const { serverUrl, username, password: storedPassword } = useAuthStore.getState();
+    // Fall back to SecureStore for backward compatibility with older installs
+    const password = storedPassword ?? await SecureStore.getItemAsync('password');
 
     if (!serverUrl || !username || !password) {
         throw new Error('Missing credentials');
@@ -235,8 +236,8 @@ export const getSongs = async (offset = 0, size = 50) => {
 
 // Raw auth params without wifi check - for building URLs in bulk
 export const getAuthParamsRaw = async (): Promise<Record<string, string> | null> => {
-    const { serverUrl, username } = useAuthStore.getState();
-    const password = await SecureStore.getItemAsync('password');
+    const { serverUrl, username, password: storedPassword } = useAuthStore.getState();
+    const password = storedPassword ?? await SecureStore.getItemAsync('password');
     if (!serverUrl || !username || !password) return null;
     const salt = Math.random().toString(36).substring(2, 15);
     const token = md5(password + salt);

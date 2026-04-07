@@ -1,35 +1,19 @@
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useAuthStore, useSettingsStore } from '../../src/store/useStore';
-import * as SecureStore from 'expo-secure-store';
 import * as FileSystem from 'expo-file-system/legacy';
 import { theme } from '../../src/constants/theme';
 import { FolderOpen, XCircle, Trash2, PlusCircle, LogOut, ToggleLeft, ToggleRight } from 'lucide-react-native';
 import { checkConnection, ConnectionStatus } from '../../src/api/navidrome';
 
 export default function SettingsScreen() {
-    const { serverUrl, username, setAuth, logout } = useAuthStore();
+    const { serverUrl, username, password: savedPassword, setAuth, setCredentials, logout } = useAuthStore();
     const { cacheDir, musicFolders, wifiOnly, setCacheDir, addMusicFolder, removeMusicFolder, setWifiOnly } = useSettingsStore();
     const [url, setUrl] = useState(serverUrl || '');
     const [user, setUser] = useState(username || '');
-    const [pass, setPass] = useState('');
+    const [pass, setPass] = useState(savedPassword || '');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
-
-    useEffect(() => {
-        loadPassword();
-    }, []);
-
-    const loadPassword = async () => {
-        try {
-            const storedPass = await SecureStore.getItemAsync('password');
-            if (storedPass) {
-                setPass(storedPass);
-            }
-        } catch (e) {
-            console.error('Failed to load password', e);
-        }
-    };
 
     const handleSave = async () => {
         if (!url || !user || !pass) {
@@ -71,10 +55,11 @@ export default function SettingsScreen() {
         }
 
         if (successUrl) {
-            await SecureStore.setItemAsync('password', pass);
-            setAuth(successUrl, user);
+            setAuth(successUrl, user, pass);
             setMessage({ text: `Connected as ${user}`, type: 'success' });
         } else {
+            // Save credentials even on failure so user doesn't have to retype
+            setCredentials(cleanUrl.startsWith('http') ? cleanUrl : `http://${cleanUrl}`, user, pass);
             let errorText = 'Connection failed';
             if (lastResult) {
                 switch (lastResult.status) {
@@ -106,8 +91,7 @@ export default function SettingsScreen() {
         setLoading(false);
     };
 
-    const handleLogout = async () => {
-        await SecureStore.deleteItemAsync('password');
+    const handleLogout = () => {
         logout();
     };
 

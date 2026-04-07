@@ -38,7 +38,7 @@ yarn-error.*
 
 # generated native folders
 /ios
-/android
+# android is tracked because it contains manual native customisations (widget, manifest, new-arch flag)
 
 # Claude Code
 .claude/
