@@ -1,4 +1,5 @@
-import TrackPlayer, { Event, State, NativeModules } from 'react-native-track-player';
+import TrackPlayer, { Event, State } from 'react-native-track-player';
+import { NativeModules } from 'react-native';
 
 const { NDPlayerWidget } = NativeModules;
 
