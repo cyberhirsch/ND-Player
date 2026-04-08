@@ -1,5 +1,6 @@
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
-import { useState, useEffect } from 'react';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert, Image } from 'react-native';
+import { useState } from 'react';
+import Constants from 'expo-constants';
 import { useAuthStore, useSettingsStore } from '../../src/store/useStore';
 import * as FileSystem from 'expo-file-system/legacy';
 import { theme } from '../../src/constants/theme';
@@ -126,12 +127,14 @@ export default function SettingsScreen() {
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-            {!serverUrl && (
-                <View style={styles.welcomeBanner}>
-                    <Text style={styles.welcomeTitle}>Welcome to ND Player</Text>
-                    <Text style={styles.welcomeText}>Connect to a Navidrome server to stream music, or add a local music folder below. You can use all features without a server.</Text>
-                </View>
-            )}
+            <View style={styles.logoHeader}>
+                <Image
+                    source={require('../../assets/splash-icon.png')}
+                    style={styles.logo}
+                    resizeMode="contain"
+                />
+                <Text style={styles.versionText}>v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
+            </View>
             <View style={styles.formGroup}>
                 <Text style={styles.label}>Navidrome Server URL</Text>
                 <TextInput
@@ -295,24 +298,18 @@ const styles = StyleSheet.create({
     error: {
         color: theme.colors.error,
     },
-    welcomeBanner: {
-        backgroundColor: theme.colors.player,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: theme.colors.accent,
-        padding: theme.spacing.lg,
+    logoHeader: {
+        alignItems: 'center',
         marginBottom: theme.spacing.xl,
-        gap: 8,
+        gap: 4,
     },
-    welcomeTitle: {
-        color: theme.colors.accent,
-        fontSize: theme.fontSize.lg,
-        fontWeight: 'bold',
+    logo: {
+        width: 220,
+        height: 66,
     },
-    welcomeText: {
+    versionText: {
         color: theme.colors.textSecondary,
-        fontSize: theme.fontSize.md,
-        lineHeight: 22,
+        fontSize: theme.fontSize.sm,
     },
     sectionHeader: {
         color: theme.colors.textSecondary,
