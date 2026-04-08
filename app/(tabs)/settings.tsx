@@ -1,5 +1,5 @@
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert, Image } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Constants from 'expo-constants';
 import { useAuthStore, useSettingsStore } from '../../src/store/useStore';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -16,6 +16,13 @@ export default function SettingsScreen() {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
 
+    // Sync form fields when store hydrates (AsyncStorage is async on first load)
+    useEffect(() => {
+        if (serverUrl) setUrl(serverUrl);
+        if (username) setUser(username);
+        if (savedPassword) setPass(savedPassword);
+    }, [serverUrl, username, savedPassword]);
+
     const handleSave = async () => {
         if (!url || !user || !pass) {
             setMessage({ text: 'Please fill in all fields', type: 'error' });
@@ -28,6 +35,12 @@ export default function SettingsScreen() {
         let cleanUrl = url.trim();
         if (cleanUrl.endsWith('/')) cleanUrl = cleanUrl.slice(0, -1);
         if (cleanUrl.endsWith('/app')) cleanUrl = cleanUrl.slice(0, -4);
+
+        // Add default port 4533 if no port specified
+        const hostPart = cleanUrl.replace(/^https?:\/\//, '').split('/')[0];
+        if (!hostPart.includes(':')) {
+            cleanUrl = cleanUrl.replace(hostPart, `${hostPart}:4533`);
+        }
 
         const hasProtocol = cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://');
         // Try HTTPS first, fall back to HTTP if no protocol specified
