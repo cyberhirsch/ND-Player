@@ -19,7 +19,7 @@ export default function PlaylistsScreen() {
 
     useEffect(() => {
         loadPlaylists();
-    }, [isOfflineMode]);
+    }, [isOfflineMode, serverUrl]);
 
     const loadPlaylists = async () => {
         setLoading(true);

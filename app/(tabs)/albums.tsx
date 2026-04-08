@@ -39,7 +39,7 @@ export default function AlbumsScreen() {
 
     useEffect(() => {
         loadAlbums();
-    }, [isOfflineMode]);
+    }, [isOfflineMode, serverUrl]);
 
     // Fetch starred albums whenever heart is toggled on — uses getStarred2 (same proven endpoint as songs)
     useEffect(() => {

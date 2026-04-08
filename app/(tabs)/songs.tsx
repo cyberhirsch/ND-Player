@@ -35,7 +35,7 @@ export default function SongsScreen() {
         } else {
             setLoading(false);
         }
-    }, [isOfflineMode]);
+    }, [isOfflineMode, serverUrl]);
 
     // Re-fetch starred songs when heart is pressed, in case the initial mount fetch failed
     useEffect(() => {
