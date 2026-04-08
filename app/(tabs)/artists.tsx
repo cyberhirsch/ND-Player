@@ -66,11 +66,11 @@ export default function ArtistsScreen() {
                     <ArtistRow item={item} onPress={() => setSelectedArtist(item)} />
                 )}
                 ListEmptyComponent={
-                    <View style={styles.empty}>
-                        <Text style={styles.emptyText}>
-                            {serverUrl ? 'No artists found' : 'No music'}
-                        </Text>
-                    </View>
+                    serverUrl ? (
+                        <View style={styles.empty}>
+                            <Text style={styles.emptyText}>No artists found</Text>
+                        </View>
+                    ) : null
                 }
             />
 

@@ -256,10 +256,10 @@ const styles = StyleSheet.create({
         backgroundColor: theme.colors.background,
     },
     content: {
-        padding: theme.spacing.lg,
+        padding: theme.spacing.md,
     },
     formGroup: {
-        marginBottom: theme.spacing.lg,
+        marginBottom: theme.spacing.sm,
     },
     label: {
         color: theme.colors.textSecondary,
@@ -300,16 +300,16 @@ const styles = StyleSheet.create({
     },
     logoHeader: {
         alignItems: 'center',
-        marginBottom: theme.spacing.xl,
-        gap: 4,
+        marginBottom: theme.spacing.md,
     },
     logo: {
-        width: 220,
-        height: 66,
+        width: 660,
+        height: 198,
     },
     versionText: {
         color: theme.colors.textSecondary,
         fontSize: theme.fontSize.sm,
+        marginTop: -4,
     },
     sectionHeader: {
         color: theme.colors.textSecondary,

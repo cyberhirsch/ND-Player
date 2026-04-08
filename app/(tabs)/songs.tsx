@@ -208,11 +208,7 @@ export default function SongsScreen() {
                                 </>
                             ) : isSearching ? (
                                 <Text style={styles.emptyText}>No songs found for "{filter.trim()}"</Text>
-                            ) : isOfflineMode || !serverUrl ? (
-                                <Text style={styles.emptyText}>No downloaded music</Text>
-                            ) : (
-                                <Text style={styles.emptyText}>No songs found</Text>
-                            )}
+                            ) : null}
                         </View>
                     }
                 />
