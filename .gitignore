@@ -3,10 +3,11 @@
 # dependencies
 node_modules/
 
-# Expo
-.expo/
+# build output
 dist/
+dist-ssr/
 web-build/
+.expo/
 expo-env.d.ts
 
 # Native
@@ -18,13 +19,32 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# generated native folders
+/apps/mobile/ios
+# apps/mobile/android is tracked because it contains manual native
+# customisations (widget, manifest, new-arch flag)
+
 # Metro
 .metro-health-check*
 
-# debug
+# logs / debug
+logs
+*.log
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+pnpm-debug.log*
+lerna-debug.log*
+
+# editors
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
 # macOS
 .DS_Store
@@ -32,13 +52,10 @@ yarn-error.*
 
 # local env files
 .env*.local
+*.local
 
 # typescript
 *.tsbuildinfo
-
-# generated native folders
-/ios
-# android is tracked because it contains manual native customisations (widget, manifest, new-arch flag)
 
 # Claude Code
 .claude/
@@ -46,6 +63,9 @@ CLAUDE.md
 
 # Local notes
 tasks.md
+_info/
 
-# Large binary assets (source files)
-assets/*.psd
+# Large binary source assets
+*.psd
+# except this one, which was already in history
+!/apps/mobile/assets/button.psd
