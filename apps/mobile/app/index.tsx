@@ -6,7 +6,7 @@ export default function Index() {
     const musicFolders = useSettingsStore((state) => state.musicFolders);
 
     if (serverUrl || musicFolders.length > 0) {
-        return <Redirect href="/(tabs)/albums" />;
+        return <Redirect href="/(tabs)/playlists" />;
     }
     return <Redirect href="/(tabs)/settings" />;
 }

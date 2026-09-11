@@ -46,6 +46,13 @@ export default function TabsLayout() {
                 }}
             >
                 <Tabs.Screen
+                    name="playlists"
+                    options={{
+                        title: 'Playlists',
+                        tabBarIcon: ({ color }) => <List size={22} color={color} />,
+                    }}
+                />
+                <Tabs.Screen
                     name="albums"
                     options={{
                         title: 'Albums',
@@ -57,13 +64,6 @@ export default function TabsLayout() {
                     options={{
                         title: 'Artists',
                         tabBarIcon: ({ color }) => <Users size={22} color={color} />,
-                    }}
-                />
-                <Tabs.Screen
-                    name="playlists"
-                    options={{
-                        title: 'Playlists',
-                        tabBarIcon: ({ color }) => <List size={22} color={color} />,
                     }}
                 />
                 <Tabs.Screen

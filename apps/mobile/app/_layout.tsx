@@ -72,7 +72,7 @@ export default function RootLayout() {
         const inTabsGroup = segments[0] === '(tabs)';
         if (!inTabsGroup) {
             if (serverUrl || musicFolders.length > 0) {
-                router.replace('/(tabs)/albums');
+                router.replace('/(tabs)/playlists');
             } else {
                 router.replace('/(tabs)/settings');
             }

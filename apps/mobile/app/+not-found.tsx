@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 export default function NotFound() {
     const router = useRouter();
     useEffect(() => {
-        router.replace('/(tabs)/albums');
+        router.replace('/(tabs)/playlists');
     }, []);
     return null;
 }
