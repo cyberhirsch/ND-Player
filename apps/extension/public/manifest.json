@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Navidrome Player",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A full-page music player for Navidrome.",
+  "minimum_chrome_version": "116",
   "action": {
     "default_title": "Open Player"
   },
@@ -10,11 +11,11 @@
     "service_worker": "background.js"
   },
   "permissions": [
-    "storage",
-    "unlimitedStorage"
+    "storage"
   ],
-  "host_permissions": [
-    "<all_urls>"
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
   ],
   "icons": {
     "16": "icon16.png",

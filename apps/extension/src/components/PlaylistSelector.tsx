@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { navidromeApi } from '../api/navidrome';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { describeError, navidromeApi } from '../api/navidrome';
+import { toast } from '../store/useToastStore';
 
 interface PlaylistSelectorProps {
     onSelectPlaylist: (playlistId: string | null) => void;
@@ -10,22 +11,25 @@ interface PlaylistSelectorProps {
 export default function PlaylistSelector({ onSelectPlaylist, selectedPlaylistId }: PlaylistSelectorProps) {
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [newPlaylistName, setNewPlaylistName] = useState('');
+    const queryClient = useQueryClient();
 
-    const { data: playlists, refetch } = useQuery({
+    const { data: playlists = [] } = useQuery({
         queryKey: ['playlists'],
         queryFn: navidromeApi.getPlaylists,
     });
 
     const handleCreate = async () => {
-        if (!newPlaylistName.trim()) return;
-
+        const name = newPlaylistName.trim();
+        if (!name) return;
         try {
-            await navidromeApi.createPlaylist(newPlaylistName);
+            const playlist = await navidromeApi.createPlaylist(name);
             setNewPlaylistName('');
             setShowCreateDialog(false);
-            refetch();
+            await queryClient.invalidateQueries({ queryKey: ['playlists'] });
+            if (playlist?.id) onSelectPlaylist(playlist.id);
+            toast.success(`Created "${name}".`);
         } catch (error) {
-            console.error('Failed to create playlist:', error);
+            toast.error(`Could not create playlist: ${describeError(error)}`);
         }
     };
 
@@ -35,21 +39,16 @@ export default function PlaylistSelector({ onSelectPlaylist, selectedPlaylistId 
                 value={selectedPlaylistId || 'queue'}
                 onChange={(e) => onSelectPlaylist(e.target.value === 'queue' ? null : e.target.value)}
                 className="playlist-dropdown"
+                aria-label="Show queue or playlist"
             >
                 <option value="queue">Queue</option>
                 <optgroup label="Playlists">
-                    {playlists?.map((playlist: any) => (
-                        <option key={playlist.id} value={playlist.id}>
-                            {playlist.name}
-                        </option>
+                    {playlists.map(playlist => (
+                        <option key={playlist.id} value={playlist.id}>{playlist.name}</option>
                     ))}
                 </optgroup>
             </select>
-            <button
-                className="create-playlist-btn"
-                onClick={() => setShowCreateDialog(true)}
-                title="Create new playlist"
-            >
+            <button className="create-playlist-btn" onClick={() => setShowCreateDialog(true)} title="Create new playlist">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M12 5v14M5 12h14" />
                 </svg>
@@ -64,11 +63,13 @@ export default function PlaylistSelector({ onSelectPlaylist, selectedPlaylistId 
                             placeholder="Playlist name"
                             value={newPlaylistName}
                             onChange={(e) => setNewPlaylistName(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && handleCreate()}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') void handleCreate();
+                            }}
                             autoFocus
                         />
                         <div className="modal-actions">
-                            <button onClick={handleCreate}>Create</button>
+                            <button onClick={() => void handleCreate()} disabled={!newPlaylistName.trim()}>Create</button>
                             <button onClick={() => setShowCreateDialog(false)}>Cancel</button>
                         </div>
                     </div>

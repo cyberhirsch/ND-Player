@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useSettingsActions, useSettingsStore } from '../store/useSettingsStore';
-import { generateCredentials, navidromeApi } from '../api/navidrome';
+import { useSettingsActions } from '../store/useSettingsStore';
+import { tryConnect } from '../lib/connect';
 
 export default function ConnectScreen() {
     const [url, setUrl] = useState('');
@@ -8,29 +8,18 @@ export default function ConnectScreen() {
     const [pass, setPass] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const { setServerUrl, setCredentials } = useSettingsActions();
+    const { setConnection } = useSettingsActions();
 
     const handleConnect = async () => {
         setError('');
         setLoading(true);
-        try {
-            // Temporary set to test connection
-            useSettingsStore.setState({ serverUrl: url, username: user });
-            const { salt, token } = generateCredentials(pass);
-
-            // Update store with potential creds
-            setServerUrl(url);
-            setCredentials(user, salt, token);
-
-            // Test connection
-            await navidromeApi.ping();
-
-            // If successful, the store is already updated, so we are good.
-        } catch (e) {
-            setError('Connection failed. Check URL and credentials.');
-            console.error(e);
-        } finally {
-            setLoading(false);
+        // Credentials are stored only after the server has accepted them.
+        const result = await tryConnect(url, user, { password: pass });
+        setLoading(false);
+        if (result.ok) {
+            setConnection(result.creds);
+        } else {
+            setError(result.message);
         }
     };
 
@@ -47,7 +36,7 @@ export default function ConnectScreen() {
                     className="connect-form"
                     onSubmit={(e) => {
                         e.preventDefault();
-                        handleConnect();
+                        void handleConnect();
                     }}
                 >
                     <div className="input-group">
@@ -90,13 +79,9 @@ export default function ConnectScreen() {
                         />
                     </div>
 
-                    {error && <div className="connect-error">{error}</div>}
+                    {error && <div className="connect-error" role="alert">{error}</div>}
 
-                    <button
-                        className="connect-button"
-                        type="submit"
-                        disabled={loading}
-                    >
+                    <button className="connect-button" type="submit" disabled={loading}>
                         {loading ? 'Connecting...' : 'Connect'}
                     </button>
                 </form>

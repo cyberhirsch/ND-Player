@@ -2,12 +2,21 @@ export interface Song {
     id: string;
     title: string;
     artist: string;
+    artistId?: string;
     album: string;
+    albumId?: string;
     duration: number;
+    track?: number;
+    year?: number;
     coverArt?: string;
     path?: string;
     starred?: string;
     userRating?: number;
+}
+
+/** A song as it sits in the play queue. `qid` is unique per queue entry, so the same song can appear twice. */
+export interface QueueItem extends Song {
+    qid: string;
 }
 
 export interface Album {
@@ -21,6 +30,7 @@ export interface Album {
     created: string;
     year?: number;
     genre?: string;
+    starred?: string;
     song?: Song[]; // For album details
 }
 
@@ -29,6 +39,9 @@ export interface Artist {
     name: string;
     albumCount: number;
     coverArt?: string;
+    starred?: string;
+    biography?: string;
+    album?: Album[]; // For artist details
 }
 
 export interface Playlist {
@@ -45,21 +58,27 @@ export interface Playlist {
     entry?: Song[]; // For playlist details
 }
 
-export interface PlayerState {
-    isPlaying: boolean;
-    currentSong: Song | null;
-    queue: Song[];
-    volume: number;
-    currentTime: number;
-    duration: number;
-    actions: {
-        play: (song: Song) => void;
-        pause: () => void;
-        resume: () => void;
-        setVolume: (volume: number) => void;
-        addToQueue: (song: Song) => void;
-        clearQueue: () => void;
-        setProgress: (time: number, duration: number) => void;
-        setCurrentTime: (time: number) => void;
-    }
+export interface Genre {
+    value: string;
+    songCount?: number;
+    albumCount?: number;
 }
+
+export interface Starred {
+    artist: Artist[];
+    album: Album[];
+    song: Song[];
+}
+
+/** getAlbumList2 list types supported by the Subsonic API. */
+export type AlbumListType =
+    | 'newest'
+    | 'alphabeticalByName'
+    | 'alphabeticalByArtist'
+    | 'frequent'
+    | 'recent'
+    | 'highest'
+    | 'random'
+    | 'starred'
+    | 'byGenre'
+    | 'byYear';

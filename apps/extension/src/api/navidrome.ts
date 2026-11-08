@@ -1,239 +1,262 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import md5 from 'md5';
 import { useSettingsStore } from '../store/useSettingsStore';
+import type { Album, AlbumListType, Artist, Genre, Playlist, Song, Starred } from '../types';
 
 const CLIENT_NAME = 'NavidromeExtension';
 const API_VERSION = '1.16.1';
 
-export const getApiUrl = (endpoint: string) => {
+export interface Credentials {
+    serverUrl: string;
+    username: string;
+    salt: string;
+    token: string;
+}
+
+type ParamValue = string | number | boolean | undefined | null | Array<string | number>;
+type Params = Record<string, ParamValue>;
+
+interface SubsonicEnvelope {
+    status: 'ok' | 'failed';
+    error?: { code: number; message: string };
+    [key: string]: unknown;
+}
+
+/** A Subsonic-level failure. The server answers HTTP 200 with `status: "failed"`, so these must be detected by hand. */
+export class SubsonicError extends Error {
+    readonly code: number;
+
+    constructor(code: number, message: string) {
+        super(message);
+        this.name = 'SubsonicError';
+        this.code = code;
+    }
+}
+
+/** Strip trailing slashes and web-UI suffixes such as `/app` or `/#`. */
+export const cleanServerUrl = (url: string) =>
+    url.trim().replace(/\/+$/, '').replace(/\/(app|#)$/, '').replace(/\/+$/, '');
+
+const authParams = (creds: Credentials) => ({
+    u: creds.username,
+    t: creds.token,
+    s: creds.salt,
+    v: API_VERSION,
+    c: CLIENT_NAME,
+    f: 'json',
+});
+
+const currentCredentials = (): Credentials | null => {
     const { serverUrl, username, salt, token } = useSettingsStore.getState();
-    if (!serverUrl || !username) return '';
-
-    const params = new URLSearchParams({
-        u: username,
-        t: token,
-        s: salt,
-        v: API_VERSION,
-        c: CLIENT_NAME,
-        f: 'json',
-    });
-
-    // Remove trailing slashes and common web UI paths like /app or /#
-    let cleanUrl = serverUrl.trim().replace(/\/+$/, '');
-    cleanUrl = cleanUrl.replace(/\/(app|#)$/, '');
-
-    return `${cleanUrl}/rest/${endpoint}?${params.toString()}`;
+    if (!serverUrl || !username || !salt || !token) return null;
+    return { serverUrl, username, salt, token };
 };
 
-export const getStreamUrl = (id: string) => getApiUrl('stream') + `&id=${id}`;
-export const getCoverArtUrl = (id: string) => getApiUrl('getCoverArt') + `&id=${id}`;
+const serializeParams = (params: Params) => {
+    const searchParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+        if (value === undefined || value === null) continue;
+        if (Array.isArray(value)) {
+            value.forEach(v => searchParams.append(key, String(v)));
+        } else {
+            searchParams.append(key, String(value));
+        }
+    }
+    return searchParams.toString();
+};
 
-export const apiClient = axios.create();
+const buildUrl = (endpoint: string, extra: Params) => {
+    const creds = currentCredentials();
+    if (!creds) return '';
+    const query = serializeParams({ ...authParams(creds), ...extra });
+    return `${cleanServerUrl(creds.serverUrl)}/rest/${endpoint}?${query}`;
+};
+
+export const getStreamUrl = (id: string) => buildUrl('stream', { id });
+export const getCoverArtUrl = (id: string, size?: number) => buildUrl('getCoverArt', { id, size });
+
+const unwrap = (data: unknown): SubsonicEnvelope => {
+    const envelope = (data as { 'subsonic-response'?: SubsonicEnvelope } | null)?.['subsonic-response'];
+    if (!envelope) {
+        throw new SubsonicError(0, 'The server did not return a Subsonic response. Check the server URL.');
+    }
+    if (envelope.status === 'failed') {
+        throw new SubsonicError(envelope.error?.code ?? 0, envelope.error?.message ?? 'Request failed');
+    }
+    return envelope;
+};
+
+export const apiClient = axios.create({
+    paramsSerializer: { serialize: (params) => serializeParams(params as Params) },
+});
 
 apiClient.interceptors.request.use((config) => {
-    const { serverUrl, username, salt, token } = useSettingsStore.getState();
-
-    if (serverUrl && username && token && salt) {
-        let cleanUrl = serverUrl.trim().replace(/\/+$/, '');
-        cleanUrl = cleanUrl.replace(/\/(app|#)$/, '');
-
-        config.baseURL = `${cleanUrl}/rest`;
-        config.params = {
-            ...config.params,
-            u: username,
-            t: token,
-            s: salt,
-            v: API_VERSION,
-            c: CLIENT_NAME,
-            f: 'json',
-        };
+    const creds = currentCredentials();
+    if (creds) {
+        config.baseURL = `${cleanServerUrl(creds.serverUrl)}/rest`;
+        config.params = { ...config.params, ...authParams(creds) };
     }
     return config;
 });
 
-// Add params serializer to handle array parameters correctly (e.g. songIdToAdd=1&songIdToAdd=2)
-apiClient.defaults.paramsSerializer = {
-    serialize: (params) => {
-        const searchParams = new URLSearchParams();
-        for (const key in params) {
-            const value = params[key];
-            if (Array.isArray(value)) {
-                value.forEach(v => searchParams.append(key, v));
-            } else if (value !== undefined && value !== null) {
-                searchParams.append(key, value);
-            }
-        }
-        return searchParams.toString();
-    }
+const get = async (endpoint: string, params: Params = {}) => {
+    if (!currentCredentials()) throw new SubsonicError(0, 'Not connected to a server.');
+    const response = await apiClient.get(`/${endpoint}`, { params });
+    return unwrap(response.data);
 };
 
-export const navidromeApi = {
-    ping: async () => {
-        const response = await apiClient.get('/ping');
-        return response.data['subsonic-response'];
-    },
-    getScanStatus: async () => {
-        const response = await apiClient.get('/getScanStatus');
-        return response.data['subsonic-response'].scanStatus;
-    },
-    getMusicFolders: async () => {
-        const response = await apiClient.get('/getMusicFolders');
-        return response.data['subsonic-response'].musicFolders.musicFolder;
-    },
-    getRandomSongs: async (size = 20) => {
-        const response = await apiClient.get('/getRandomSongs', { params: { size } });
-        return response.data['subsonic-response'].randomSongs?.song || [];
-    },
-    getAlbumList: async (type = 'newest', size = 20, offset = 0, genre?: string, year?: string) => {
-        const params: any = { type, size, offset };
-        if (genre) params.genre = genre;
-        if (year) params.year = year;
-        const response = await apiClient.get('/getAlbumList', { params });
-        const albumList = response.data['subsonic-response']?.albumList;
-        return albumList?.album || [];
-    },
-    getAlbum: async (id: string) => {
-        const response = await apiClient.get('/getAlbum', { params: { id } });
-        return response.data['subsonic-response'].album;
-    },
-    getArtists: async () => {
-        const response = await apiClient.get('/getArtists');
-        const indexes = response.data['subsonic-response'].artists.index;
-        return Array.isArray(indexes) ? indexes.flatMap((index: any) => index.artist) : [];
-    },
-    getArtist: async (id: string) => {
-        const response = await apiClient.get('/getArtist', { params: { id } });
-        return response.data['subsonic-response'].artist;
-    },
-    getGenres: async () => {
-        const response = await apiClient.get('/getGenres');
-        return response.data['subsonic-response'].genres.genre;
-    },
-    getPlaylists: async () => {
-        const response = await apiClient.get('/getPlaylists');
-        return response.data['subsonic-response'].playlists.playlist;
-    },
-    getPlaylist: async (id: string) => {
-        const response = await apiClient.get('/getPlaylist', { params: { id } });
-        return response.data['subsonic-response'].playlist;
-    },
-    createPlaylist: async (name: string, comment?: string) => {
-        const response = await apiClient.get('/createPlaylist', {
-            params: { name, comment }
-        });
-        return response.data['subsonic-response'].playlist;
-    },
-    updatePlaylist: async (id: string, name?: string, comment?: string, isPublic?: boolean) => {
-        const response = await apiClient.get('/updatePlaylist', {
-            params: { playlistId: id, name, comment, public: isPublic }
-        });
-        return response.data['subsonic-response'];
-    },
-    deletePlaylist: async (id: string) => {
-        const response = await apiClient.get('/deletePlaylist', { params: { id } });
-        return response.data['subsonic-response'];
-    },
-    addToPlaylist: async (playlistId: string, songIds: string[]) => {
-        const response = await apiClient.get('/updatePlaylist', {
-            params: {
-                playlistId,
-                songIdToAdd: songIds
-            }
-        });
-        return response.data['subsonic-response'];
-    },
-    removeFromPlaylist: async (playlistId: string, indices: number[]) => {
-        const response = await apiClient.get('/updatePlaylist', {
-            params: {
-                playlistId,
-                songIndexToRemove: indices
-            }
-        });
-        return response.data['subsonic-response'];
-    },
-    star: async (id: string) => {
-        const response = await apiClient.get('/star', { params: { id } });
-        return response.data['subsonic-response'];
-    },
-    unstar: async (id: string) => {
-        const response = await apiClient.get('/unstar', { params: { id } });
-        return response.data['subsonic-response'];
-    },
-    setRating: async (id: string, rating: number) => {
-        const response = await apiClient.get('/setRating', { params: { id, rating } });
-        return response.data['subsonic-response'];
-    },
-    search: async (query: string) => {
-        const response = await apiClient.get('/search3', {
-            params: {
-                query,
-                artistCount: 0,
-                albumCount: 50,
-                songCount: 0
-            }
-        });
-        return response.data['subsonic-response'].searchResult3;
-    },
-    getStarred: async () => {
-        const response = await apiClient.get('/getStarred2');
-        return response.data['subsonic-response'].starred2;
-    },
-    getSongsByRating: async (rating: number, count = 100) => {
-        // Subsonic API doesn't support filtering by rating directly for all songs.
-        // As a better approach for "Favorite Tracks", we first fetch starred songs (which are often 5-star)
-        // and then supplement with a larger random sample if needed.
+/** Form-encoded POST (OpenSubsonic `formPost`) — keeps long ID lists out of the URL. */
+const post = async (endpoint: string, params: Params = {}) => {
+    if (!currentCredentials()) throw new SubsonicError(0, 'Not connected to a server.');
+    const response = await apiClient.post(`/${endpoint}`, serializeParams(params), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+    return unwrap(response.data);
+};
 
-        try {
-            const starred = await navidromeApi.getStarred();
-            const starredSongs = starred?.song || [];
-
-            // Filter starred songs by rating if they have it, or just include them if rating is 5
-            const ratedStarred = starredSongs.filter((song: any) =>
-                (song.userRating === rating) || (rating === 5 && song.starred)
-            );
-
-            if (ratedStarred.length >= count) {
-                return ratedStarred.slice(0, count);
-            }
-
-            // If we still need more, or for non-5-star ratings, fetch more random songs
-            // Use a larger sample size to increase chances of finding rated songs
-            const randomSongs = await navidromeApi.getRandomSongs(500);
-            const ratedRandom = randomSongs.filter((song: any) => song.userRating === rating);
-
-            // Combine and de-duplicate
-            const combined = [...ratedStarred];
-            const seenIds = new Set(combined.map(s => s.id));
-
-            for (const song of ratedRandom) {
-                if (!seenIds.has(song.id)) {
-                    combined.push(song);
-                    if (combined.length >= count) break;
-                }
-            }
-
-            return combined;
-        } catch (error) {
-            console.error("Error fetching rated songs:", error);
-            return [];
+/** Human-readable message for any error thrown by this module or axios. */
+export const describeError = (error: unknown): string => {
+    if (error instanceof SubsonicError) {
+        switch (error.code) {
+            case 40: return 'Wrong username or password.';
+            case 41: return 'This server does not accept token authentication for your account.';
+            case 50: return 'Your account is not allowed to do that.';
+            case 70: return 'Not found on the server.';
+            default: return error.message;
         }
+    }
+    if (error instanceof AxiosError) {
+        if (!error.response) return 'Could not reach the server. Check the URL and your connection.';
+        return `The server responded with HTTP ${error.response.status}.`;
+    }
+    if (error instanceof Error) return error.message;
+    return 'Something went wrong.';
+};
+
+/** Test credentials without touching the stored settings. Throws on any failure. */
+export const testConnection = async (creds: Credentials) => {
+    const response = await axios.get(`${cleanServerUrl(creds.serverUrl)}/rest/ping`, {
+        params: authParams(creds),
+        paramsSerializer: { serialize: (params) => serializeParams(params as Params) },
+        timeout: 15000,
+    });
+    return unwrap(response.data);
+};
+
+export interface AlbumListOptions {
+    genre?: string;
+    fromYear?: number;
+    toYear?: number;
+}
+
+type StarKind = 'song' | 'album' | 'artist';
+const starParam: Record<StarKind, string> = { song: 'id', album: 'albumId', artist: 'artistId' };
+
+export const navidromeApi = {
+    ping: () => get('ping'),
+
+    /** getAlbumList2 (ID3). `byGenre` needs `genre`; `byYear` needs `fromYear` and `toYear`. */
+    getAlbumList: async (type: AlbumListType, size = 50, offset = 0, options: AlbumListOptions = {}): Promise<Album[]> => {
+        const params: Params = { type, size, offset };
+        if (type === 'byGenre') params.genre = options.genre;
+        if (type === 'byYear') {
+            params.fromYear = options.fromYear;
+            params.toYear = options.toYear;
+        }
+        const envelope = await get('getAlbumList2', params);
+        return (envelope.albumList2 as { album?: Album[] } | undefined)?.album ?? [];
     },
-    getSongs: async (offset = 0, size = 100, query = '') => {
-        const response = await apiClient.get('/search3', {
-            params: {
-                query,
-                songCount: size,
-                songOffset: offset,
-                artistCount: 0,
-                albumCount: 0
-            }
+
+    getAlbum: async (id: string): Promise<Album> => {
+        const envelope = await get('getAlbum', { id });
+        return envelope.album as Album;
+    },
+
+    getArtists: async (): Promise<Artist[]> => {
+        const envelope = await get('getArtists');
+        const indexes = (envelope.artists as { index?: { artist?: Artist[] }[] } | undefined)?.index ?? [];
+        return indexes.flatMap(index => index.artist ?? []);
+    },
+
+    getArtist: async (id: string): Promise<Artist> => {
+        const envelope = await get('getArtist', { id });
+        return envelope.artist as Artist;
+    },
+
+    getGenres: async (): Promise<Genre[]> => {
+        const envelope = await get('getGenres');
+        return (envelope.genres as { genre?: Genre[] } | undefined)?.genre ?? [];
+    },
+
+    getPlaylists: async (): Promise<Playlist[]> => {
+        const envelope = await get('getPlaylists');
+        return (envelope.playlists as { playlist?: Playlist[] } | undefined)?.playlist ?? [];
+    },
+
+    getPlaylist: async (id: string): Promise<Playlist> => {
+        const envelope = await get('getPlaylist', { id });
+        return envelope.playlist as Playlist;
+    },
+
+    createPlaylist: async (name: string, songIds: string[] = []): Promise<Playlist> => {
+        const envelope = await post('createPlaylist', { name, songId: songIds });
+        return envelope.playlist as Playlist;
+    },
+
+    deletePlaylist: (id: string) => get('deletePlaylist', { id }),
+
+    addToPlaylist: (playlistId: string, songIds: string[]) =>
+        post('updatePlaylist', { playlistId, songIdToAdd: songIds }),
+
+    /** Replace a playlist's tracks in one request, so a failure can never leave it half-emptied. */
+    replacePlaylistTracks: (playlistId: string, currentTrackCount: number, songIds: string[]) =>
+        post('updatePlaylist', {
+            playlistId,
+            songIndexToRemove: Array.from({ length: currentTrackCount }, (_, i) => i),
+            songIdToAdd: songIds,
+        }),
+
+    setStarred: (kind: StarKind, id: string, starred: boolean) =>
+        get(starred ? 'star' : 'unstar', { [starParam[kind]]: id }),
+
+    setRating: (id: string, rating: number) => get('setRating', { id, rating }),
+
+    searchAlbums: async (query: string, count = 50, offset = 0): Promise<Album[]> => {
+        const envelope = await get('search3', {
+            query,
+            artistCount: 0,
+            albumCount: count,
+            albumOffset: offset,
+            songCount: 0,
         });
-        return response.data['subsonic-response'].searchResult3.song || [];
+        return (envelope.searchResult3 as { album?: Album[] } | undefined)?.album ?? [];
+    },
+
+    getStarred: async (): Promise<Starred> => {
+        const envelope = await get('getStarred2');
+        const starred = (envelope.starred2 ?? {}) as Partial<Starred>;
+        return {
+            artist: starred.artist ?? [],
+            album: starred.album ?? [],
+            song: starred.song ?? [],
+        };
+    },
+
+    getSongs: async (offset = 0, size = 100, query = ''): Promise<Song[]> => {
+        const envelope = await get('search3', {
+            query,
+            songCount: size,
+            songOffset: offset,
+            artistCount: 0,
+            albumCount: 0,
+        });
+        return (envelope.searchResult3 as { song?: Song[] } | undefined)?.song ?? [];
     },
 };
 
 export const generateCredentials = (password: string) => {
-    const salt = Math.random().toString(36).substring(2, 15);
-    const token = md5(password + salt);
-    return { salt, token };
+    const bytes = new Uint8Array(8);
+    crypto.getRandomValues(bytes);
+    const salt = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    return { salt, token: md5(password + salt) };
 };

@@ -1,174 +1,109 @@
-import { useEffect, useState, useCallback } from 'react';
-import { navidromeApi, getCoverArtUrl } from '../api/navidrome';
+import { useEffect, useState } from 'react';
+import { describeError, getCoverArtUrl, navidromeApi } from '../api/navidrome';
 import { usePlayerActions } from '../store/usePlayerStore';
+import { useDebouncedValue } from '../lib/useDebouncedValue';
+import { formatDuration, SONG_DRAG_TYPE } from '../lib/format';
 import type { Song } from '../types';
 import ContentToolbar from './ContentToolbar';
 
+const PAGE_SIZE = 50;
+
 export default function Songs() {
     const [songs, setSongs] = useState<Song[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    /** Key of the last finished request; loading means the current key has not finished yet. */
+    const [loadedKey, setLoadedKey] = useState<string | null>(null);
     const [page, setPage] = useState(0);
-    const [searchQuery, setSearchQuery] = useState('');
     const [hasMore, setHasMore] = useState(true);
-    const PAGE_SIZE = 50;
-    const { play, clearQueue, addToQueue } = usePlayerActions();
+    const [search, setSearch] = useState('');
+    const [refreshKey, setRefreshKey] = useState(0);
+    const query = useDebouncedValue(search.trim(), 300);
+    const { playQueue } = usePlayerActions();
+    const requestKey = `${query}|${page}|${refreshKey}`;
+    const loading = loadedKey !== requestKey;
 
-    const loadSongs = useCallback(async (reset = false) => {
-        setLoading(true);
-        try {
-            const currentPage = reset ? 0 : page;
-            const newSongs = await navidromeApi.getSongs(currentPage * PAGE_SIZE, PAGE_SIZE, searchQuery);
-
-            if (newSongs.length < PAGE_SIZE) {
-                setHasMore(false);
-            } else {
-                setHasMore(true);
-            }
-
-            setSongs(prev => reset ? newSongs : [...prev, ...newSongs]);
-        } catch (error) {
-            console.error('Failed to load songs:', error);
-        } finally {
-            setLoading(false);
-        }
-    }, [page, searchQuery]);
-
+    // A new query or refresh starts again from page 0. Stale responses are ignored.
     useEffect(() => {
-        loadSongs(page === 0);
-    }, [page, loadSongs]);
+        let cancelled = false;
+        navidromeApi.getSongs(page * PAGE_SIZE, PAGE_SIZE, query)
+            .then(newSongs => {
+                if (cancelled) return;
+                setSongs(prev => (page === 0 ? newSongs : [...prev, ...newSongs]));
+                setHasMore(newSongs.length === PAGE_SIZE);
+                setError(null);
+            })
+            .catch(err => {
+                if (!cancelled) setError(describeError(err));
+            })
+            .finally(() => {
+                if (!cancelled) setLoadedKey(`${query}|${page}|${refreshKey}`);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [page, query, refreshKey]);
 
-    // Reset page when search changes
-    useEffect(() => {
+    const restart = () => {
         setPage(0);
-    }, [searchQuery]);
-
-    const handlePlay = (song: Song) => {
-        clearQueue();
-        addToQueue(songs);
-        play(song);
-    };
-
-    const handleSearch = (query: string) => {
-        setSearchQuery(query);
-    };
-
-    const handleDragStart = (e: React.DragEvent, song: Song) => {
-        e.dataTransfer.setData('application/json', JSON.stringify({ type: 'song', song }));
-        e.dataTransfer.effectAllowed = 'copy';
+        setRefreshKey(k => k + 1);
     };
 
     return (
-        <div className="content-area" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '0 1rem' }}>
+        <div className="content-area songs-page">
+            <div className="songs-header">
                 <h1>Songs</h1>
                 <ContentToolbar
-                    onSearch={handleSearch}
-                    onSortChange={() => { }} // Not implemented yet
-                    onFilterClick={() => { }} // Not implemented yet
-                    onRefresh={() => {
+                    onSearch={(value) => {
+                        setSearch(value);
                         setPage(0);
-                        loadSongs(true);
                     }}
-                    onViewToggle={() => { }} // Only list view for now
-                    viewMode="list"
-                    currentSort="default"
+                    searchPlaceholder="Search songs..."
+                    onRefresh={restart}
                 />
             </div>
 
-            <div className="song-list-container" style={{ flex: 1, overflowY: 'auto', padding: '0 1rem' }}>
+            <div className="song-list-container">
                 <div className="song-list">
-                    {songs.map((song) => (
+                    {songs.map((song, index) => (
                         <div
-                            key={song.id}
+                            key={`${song.id}-${index}`}
                             className="song-item"
-                            onClick={() => handlePlay(song)}
+                            onClick={() => playQueue(songs, index)}
                             draggable
-                            onDragStart={(e) => handleDragStart(e, song)}
+                            onDragStart={(e) => {
+                                e.dataTransfer.setData(SONG_DRAG_TYPE, JSON.stringify({ type: 'song', song }));
+                                e.dataTransfer.effectAllowed = 'copy';
+                            }}
                         >
                             <img
-                                src={getCoverArtUrl(song.id)}
-                                alt={song.title}
+                                src={getCoverArtUrl(song.coverArt || song.id, 80)}
+                                alt=""
                                 className="song-cover"
-                                onError={(e) => {
-                                    (e.target as HTMLImageElement).src = '/default-album.png';
-                                }}
+                                loading="lazy"
+                                onError={(e) => e.currentTarget.classList.add('missing')}
                             />
                             <div className="song-info">
                                 <div className="song-title">{song.title}</div>
                                 <div className="song-artist">{song.artist}</div>
                             </div>
-                            <div className="song-duration">
-                                {Math.floor(song.duration / 60)}:{(song.duration % 60).toString().padStart(2, '0')}
-                            </div>
+                            <div className="song-duration">{formatDuration(song.duration)}</div>
                         </div>
                     ))}
                 </div>
-                {loading && <div style={{ padding: '1rem', textAlign: 'center' }}>Loading...</div>}
-                {!loading && hasMore && (
-                    <button onClick={() => setPage(p => p + 1)} className="load-more-btn">
+                {error && <div className="page-status error">Could not load songs: {error}</div>}
+                {loading && <div className="page-status">Loading...</div>}
+                {!loading && !error && hasMore && (
+                    <button
+                        onClick={() => setPage(p => p + 1)}
+                        className="load-more-btn"
+                    >
                         Load More
                     </button>
                 )}
-                {!loading && songs.length === 0 && (
-                    <div style={{ padding: '1rem', textAlign: 'center' }}>No songs found</div>
+                {!loading && !error && songs.length === 0 && (
+                    <div className="page-status">{query ? `No songs match "${query}".` : 'No songs found'}</div>
                 )}
             </div>
-            <style>{`
-                .song-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 8px;
-                }
-                .song-item {
-                    display: flex;
-                    align-items: center;
-                    padding: 8px;
-                    background: rgba(255, 255, 255, 0.05);
-                    border-radius: 8px;
-                    cursor: pointer;
-                    transition: background 0.2s;
-                }
-                .song-item:hover {
-                    background: rgba(255, 255, 255, 0.1);
-                }
-                .song-cover {
-                    width: 40px;
-                    height: 40px;
-                    border-radius: 4px;
-                    margin-right: 12px;
-                    object-fit: cover;
-                }
-                .song-info {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                }
-                .song-title {
-                    font-weight: 500;
-                    color: white;
-                }
-                .song-artist {
-                    font-size: 0.9em;
-                    color: #aaa;
-                }
-                .song-duration {
-                    color: #aaa;
-                    font-family: monospace;
-                }
-                .load-more-btn {
-                    margin: 20px auto;
-                    display: block;
-                    padding: 10px 20px;
-                    background: #333;
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    cursor: pointer;
-                }
-                .load-more-btn:hover {
-                    background: #444;
-                }
-            `}</style>
         </div>
     );
 }

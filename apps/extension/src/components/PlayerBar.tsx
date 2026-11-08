@@ -1,75 +1,89 @@
 import { useState } from 'react';
-import { usePlayerStore } from '../store/usePlayerStore';
-import { navidromeApi, getCoverArtUrl } from '../api/navidrome';
 import { useNavigate } from 'react-router-dom';
+import { useShallow } from 'zustand/react/shallow';
+import { usePlayerStore, type RepeatMode } from '../store/usePlayerStore';
+import { describeError, getCoverArtUrl, navidromeApi } from '../api/navidrome';
+import { toggleStar } from '../lib/starring';
+import { toast } from '../store/useToastStore';
+import HeartButton from './HeartButton';
 
 const formatTime = (seconds: number) => {
-    if (!seconds) return '0:00';
+    if (!seconds || !Number.isFinite(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
+const REPEAT_ORDER: RepeatMode[] = ['off', 'all', 'one'];
+
+/** The only part of the bar that changes several times a second; isolated so the rest does not re-render. */
+function Scrubber() {
+    const currentTime = usePlayerStore(state => state.currentTime);
+    const duration = usePlayerStore(state => state.duration);
+    const seekTo = usePlayerStore(state => state.actions.seekTo);
+    const [dragTime, setDragTime] = useState<number | null>(null);
+
+    const shownTime = dragTime ?? currentTime;
+    const commit = () => {
+        if (dragTime !== null) {
+            seekTo(dragTime);
+            setDragTime(null);
+        }
+    };
+
+    return (
+        <div className="player-scrubber">
+            <span className="time-label">{formatTime(shownTime)}</span>
+            <input
+                type="range"
+                min={0}
+                max={duration || 0}
+                step="any"
+                value={Math.min(shownTime, duration || 0)}
+                onChange={(e) => setDragTime(Number(e.target.value))}
+                onMouseUp={commit}
+                onTouchEnd={commit}
+                onKeyUp={commit}
+                className="progress-slider"
+                aria-label="Seek"
+                style={{ '--progress': `${duration ? (shownTime / duration) * 100 : 0}%` } as React.CSSProperties}
+            />
+            <span className="time-label">{formatTime(duration)}</span>
+        </div>
+    );
+}
+
 export default function PlayerBar() {
-    const { currentSong, isPlaying, volume, currentTime, duration, shuffle, repeat, skipOneStar, actions } = usePlayerStore();
+    const { currentSong, isPlaying, volume, shuffle, repeat, skipOneStar } = usePlayerStore(useShallow(state => ({
+        currentSong: state.currentSong,
+        isPlaying: state.isPlaying,
+        volume: state.volume,
+        shuffle: state.shuffle,
+        repeat: state.repeat,
+        skipOneStar: state.skipOneStar,
+    })));
+    const actions = usePlayerStore(state => state.actions);
     const navigate = useNavigate();
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragTime, setDragTime] = useState(0);
-
-    const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const time = Number(e.target.value);
-        if (isDragging) {
-            setDragTime(time);
-        } else {
-            // Direct click without drag
-            actions.setCurrentTime(time);
-        }
-    };
-
-    const handleSeekEnd = () => {
-        if (isDragging) {
-            actions.setCurrentTime(dragTime);
-            setIsDragging(false);
-        }
-    };
-
-    const handleSeekStart = () => {
-        setIsDragging(true);
-        setDragTime(currentTime);
-    };
-
-    const toggleFavorite = async () => {
-        if (!currentSong) return;
-        try {
-            if (currentSong.starred) {
-                await navidromeApi.unstar(currentSong.id);
-                actions.updateSong(currentSong.id, { starred: undefined });
-            } else {
-                await navidromeApi.star(currentSong.id);
-                actions.updateSong(currentSong.id, { starred: new Date().toISOString() });
-            }
-        } catch (error) {
-            console.error('Failed to toggle favorite:', error);
-        }
-    };
 
     const setRating = async (rating: number) => {
         if (!currentSong) return;
+        const previous = currentSong.userRating ?? 0;
+        const newRating = previous === rating ? 0 : rating; // clicking the same rating clears it
+        actions.updateSong(currentSong.id, { userRating: newRating });
         try {
-            // If clicking same rating, remove it (set to 0)
-            const newRating = currentSong.userRating === rating ? 0 : rating;
             await navidromeApi.setRating(currentSong.id, newRating);
-            actions.updateSong(currentSong.id, { userRating: newRating });
         } catch (error) {
-            console.error('Failed to set rating:', error);
+            actions.updateSong(currentSong.id, { userRating: previous });
+            toast.error(`Could not save rating: ${describeError(error)}`);
         }
     };
 
     const toggleRepeat = () => {
-        const modes: ('off' | 'all' | 'one')[] = ['off', 'all', 'one'];
-        const currentIndex = modes.indexOf(repeat);
-        const nextMode = modes[(currentIndex + 1) % modes.length];
-        actions.setRepeat(nextMode);
+        actions.setRepeat(REPEAT_ORDER[(REPEAT_ORDER.indexOf(repeat) + 1) % REPEAT_ORDER.length]);
+    };
+
+    const openAlbum = () => {
+        if (currentSong?.albumId) navigate(`/albums/${currentSong.albumId}`);
     };
 
     return (
@@ -78,29 +92,28 @@ export default function PlayerBar() {
             <div className="player-left">
                 {currentSong ? (
                     <>
-                        <div
+                        <button
+                            type="button"
                             className="album-art-container"
-                            onClick={() => navigate(`/albums/${currentSong.album}`)} // Assuming album ID is not directly available, might need to fetch or use albumId if available. Wait, Song interface has album string (name) but not ID? Let's check.
-                        // Actually Song interface has `album` which is the name. We need `albumId`. 
-                        // Standard Navidrome/Subsonic song object usually has `albumId`. 
-                        // Let's assume for now we can't navigate easily without ID. 
-                        // Wait, looking at types.ts, Song has `album: string`. 
-                        // I might need to update Song type to include `albumId`.
-                        // For now, let's just show the art.
+                            onClick={openAlbum}
+                            disabled={!currentSong.albumId}
+                            title={currentSong.albumId ? `Open album "${currentSong.album}"` : undefined}
                         >
                             {currentSong.coverArt && (
                                 <img
-                                    src={getCoverArtUrl(currentSong.coverArt) + '&size=100'}
+                                    src={getCoverArtUrl(currentSong.coverArt, 100)}
                                     alt={currentSong.album}
                                     className="player-album-art"
                                 />
                             )}
-                            <div className="player-album-art-overlay">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <polyline points="15 18 9 12 15 6"></polyline>
-                                </svg>
-                            </div>
-                        </div>
+                            {currentSong.albumId && (
+                                <div className="player-album-art-overlay">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M15 3h6v6M10 14L21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                    </svg>
+                                </div>
+                            )}
+                        </button>
                         <div className="player-song-info">
                             <div className="player-title" title={currentSong.title}>{currentSong.title}</div>
                             <div className="player-artist" title={currentSong.artist}>{currentSong.artist}</div>
@@ -114,11 +127,11 @@ export default function PlayerBar() {
             {/* Center: Controls & Scrubber */}
             <div className="player-center">
                 <div className="player-controls">
-                    {/* 1. Skip 1-Star */}
                     <button
                         className="control-btn"
                         onClick={actions.toggleSkipOneStar}
                         title="Skip 1-Star Tracks"
+                        aria-pressed={skipOneStar}
                         style={{ color: skipOneStar ? 'var(--accent-color)' : undefined }}
                     >
                         {skipOneStar ? (
@@ -133,14 +146,12 @@ export default function PlayerBar() {
                         )}
                     </button>
 
-                    {/* 2. Stop */}
                     <button className="control-btn" onClick={actions.stop} title="Stop">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                             <rect x="6" y="6" width="12" height="12"></rect>
                         </svg>
                     </button>
 
-                    {/* 3. Previous */}
                     <button className="control-btn" onClick={actions.previous} title="Previous">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                             <polygon points="19 20 9 12 19 4 19 20"></polygon>
@@ -148,10 +159,10 @@ export default function PlayerBar() {
                         </svg>
                     </button>
 
-                    {/* 4. Play/Pause */}
                     <button
                         className="play-pause-btn"
-                        onClick={() => isPlaying ? actions.pause() : currentSong ? actions.resume() : null}
+                        onClick={() => (isPlaying ? actions.pause() : actions.resume())}
+                        title={isPlaying ? 'Pause' : 'Play'}
                     >
                         {isPlaying ? (
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -165,7 +176,6 @@ export default function PlayerBar() {
                         )}
                     </button>
 
-                    {/* 5. Next */}
                     <button className="control-btn" onClick={actions.next} title="Next">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                             <polygon points="5 4 15 12 5 20 5 4"></polygon>
@@ -173,11 +183,11 @@ export default function PlayerBar() {
                         </svg>
                     </button>
 
-                    {/* 6. Shuffle */}
                     <button
                         className="control-btn"
                         onClick={actions.toggleShuffle}
                         title="Shuffle"
+                        aria-pressed={shuffle}
                         style={{ color: shuffle ? 'var(--accent-color)' : undefined }}
                     >
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -189,7 +199,6 @@ export default function PlayerBar() {
                         </svg>
                     </button>
 
-                    {/* 7. Repeat */}
                     <button
                         className="control-btn"
                         onClick={toggleRepeat}
@@ -208,46 +217,29 @@ export default function PlayerBar() {
                     </button>
                 </div>
 
-                <div className="player-scrubber">
-                    <span className="time-label">{formatTime(isDragging ? dragTime : currentTime)}</span>
-                    <input
-                        type="range"
-                        min={0}
-                        max={duration || 0}
-                        value={isDragging ? dragTime : currentTime}
-                        onChange={handleSeek}
-                        onMouseDown={handleSeekStart}
-                        onMouseUp={handleSeekEnd}
-                        onTouchStart={handleSeekStart}
-                        onTouchEnd={handleSeekEnd}
-                        className="progress-slider"
-                        style={{
-                            '--progress': `${duration ? ((isDragging ? dragTime : currentTime) / duration) * 100 : 0}%`
-                        } as React.CSSProperties}
-                    />
-                    <span className="time-label">{formatTime(duration)}</span>
-                </div>
+                <Scrubber />
             </div>
 
             {/* Right: Volume & Extras */}
             <div className="player-right">
                 <div className="player-extras">
-                    <button
-                        className={`control-btn ${currentSong?.starred ? 'active' : ''}`}
-                        onClick={toggleFavorite}
-                        title="Favorite"
-                    >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill={currentSong?.starred ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                        </svg>
-                    </button>
+                    {currentSong && (
+                        <HeartButton
+                            className="control-btn"
+                            size={20}
+                            starred={!!currentSong.starred}
+                            onToggle={() => void toggleStar('song', currentSong.id, !!currentSong.starred)}
+                        />
+                    )}
 
                     <div className="star-rating">
                         {[1, 2, 3, 4, 5].map((star) => (
                             <button
                                 key={star}
                                 className={`star-btn ${currentSong?.userRating && currentSong.userRating >= star ? 'filled' : ''}`}
-                                onClick={() => setRating(star)}
+                                onClick={() => void setRating(star)}
+                                disabled={!currentSong}
+                                title={`Rate ${star} star${star === 1 ? '' : 's'}`}
                             >
                                 ★
                             </button>
@@ -259,6 +251,7 @@ export default function PlayerBar() {
                     <button
                         className="control-btn"
                         onClick={() => actions.setVolume(volume === 0 ? 100 : 0)}
+                        title={volume === 0 ? 'Unmute' : 'Mute'}
                     >
                         {volume === 0 ? (
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -280,9 +273,8 @@ export default function PlayerBar() {
                         value={volume}
                         onChange={(e) => actions.setVolume(Number(e.target.value))}
                         className="volume-slider"
-                        style={{
-                            '--volume': `${volume}%`
-                        } as React.CSSProperties}
+                        aria-label="Volume"
+                        style={{ '--volume': `${volume}%` } as React.CSSProperties}
                     />
                 </div>
             </div>

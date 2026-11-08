@@ -69,3 +69,6 @@ _info/
 *.psd
 # except this one, which was already in history
 !/apps/mobile/assets/button.psd
+
+# packaged extension builds
+*.zip

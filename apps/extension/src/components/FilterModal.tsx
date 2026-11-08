@@ -1,57 +1,54 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { navidromeApi } from '../api/navidrome';
-
-export interface FilterState {
-    starred?: string;
-    compilation?: string;
-    rated?: boolean;
-    recentlyPlayed?: boolean;
-    year?: string;
-    genre?: string;
-    artist?: string;
-}
+import { NO_FILTER, type AlbumFilter } from '../lib/albumFilter';
 
 interface FilterModalProps {
-    isOpen: boolean;
     onClose: () => void;
-    onApply: (filters: FilterState) => void;
-    initialFilters: FilterState;
+    onApply: (filter: AlbumFilter) => void;
+    initialFilter: AlbumFilter;
 }
 
-export default function FilterModal({ isOpen, onClose, onApply, initialFilters }: FilterModalProps) {
-    const [filters, setFilters] = useState<FilterState>(initialFilters);
+/** Mount only while open, so the form starts from the current filter each time. */
+export default function FilterModal({ onClose, onApply, initialFilter }: FilterModalProps) {
+    const [kind, setKind] = useState<AlbumFilter['kind']>(initialFilter.kind);
+    const [genre, setGenre] = useState(initialFilter.kind === 'genre' ? initialFilter.genre : '');
+    const [fromYear, setFromYear] = useState(initialFilter.kind === 'year' ? String(initialFilter.fromYear) : '');
+    const [toYear, setToYear] = useState(initialFilter.kind === 'year' ? String(initialFilter.toYear) : '');
 
-    // Reset filters when modal opens
-    useEffect(() => {
-        if (isOpen) setFilters(initialFilters);
-    }, [isOpen, initialFilters]);
-
-    const { data: genres } = useQuery({
+    const { data: genres = [] } = useQuery({
         queryKey: ['genres'],
         queryFn: navidromeApi.getGenres,
-        enabled: isOpen
     });
 
-    const { data: artists } = useQuery({
-        queryKey: ['artists'],
-        queryFn: navidromeApi.getArtists,
-        enabled: isOpen
-    });
+    const from = Number(fromYear);
+    const to = toYear ? Number(toYear) : from;
+    const yearValid = Number.isInteger(from) && from > 0 && Number.isInteger(to) && to > 0;
+    const canApply = kind !== 'genre' ? (kind !== 'year' || yearValid) : !!genre;
 
-    if (!isOpen) return null;
-
-    const handleChange = (key: keyof FilterState, value: any) => {
-        setFilters(prev => ({ ...prev, [key]: value }));
+    const apply = () => {
+        switch (kind) {
+            case 'genre': onApply({ kind, genre }); break;
+            case 'year': onApply({ kind, fromYear: from, toYear: to }); break;
+            default: onApply({ kind } as AlbumFilter);
+        }
     };
 
-    return (
+    const option = (value: AlbumFilter['kind'], label: string) => (
+        <label className="filter-option">
+            <input type="radio" name="album-filter" checked={kind === value} onChange={() => setKind(value)} />
+            {label}
+        </label>
+    );
+
+    return createPortal(
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-content filter-modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h2>Filter Albums</h2>
-                    <button onClick={onClose} className="close-btn">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <h3>Filter Albums</h3>
+                    <button onClick={onClose} className="close-btn" aria-label="Close">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
                         </svg>
@@ -59,94 +56,37 @@ export default function FilterModal({ isOpen, onClose, onApply, initialFilters }
                 </div>
 
                 <div className="modal-body">
-                    <div className="filter-group">
-                        <label>Is Favorited</label>
-                        <select
-                            value={filters.starred || ''}
-                            onChange={e => handleChange('starred', e.target.value)}
-                        >
-                            <option value="">Any</option>
-                            <option value="yes">Yes</option>
-                            <option value="no">No</option>
-                        </select>
-                    </div>
+                    {option('none', 'All albums')}
+                    {option('starred', 'Favourites')}
 
-                    <div className="filter-group">
-                        <label>Is Compilation</label>
-                        <select
-                            value={filters.compilation || ''}
-                            onChange={e => handleChange('compilation', e.target.value)}
-                        >
-                            <option value="">Any</option>
-                            <option value="yes">Yes</option>
-                            <option value="no">No</option>
-                        </select>
-                    </div>
-
-                    <div className="filter-group-toggle">
-                        <label>
-                            <input
-                                type="checkbox"
-                                checked={filters.rated || false}
-                                onChange={e => handleChange('rated', e.target.checked)}
-                            />
-                            Is Rated
-                        </label>
-                    </div>
-
-                    <div className="filter-group-toggle">
-                        <label>
-                            <input
-                                type="checkbox"
-                                checked={filters.recentlyPlayed || false}
-                                onChange={e => handleChange('recentlyPlayed', e.target.checked)}
-                            />
-                            Is Recently Played
-                        </label>
-                    </div>
-
-                    <div className="filter-group">
-                        <label>Year</label>
-                        <input
-                            type="number"
-                            value={filters.year || ''}
-                            onChange={e => handleChange('year', e.target.value)}
-                            placeholder="YYYY"
-                        />
-                    </div>
-
-                    <div className="filter-group">
-                        <label>Genre</label>
-                        <select
-                            value={filters.genre || ''}
-                            onChange={e => handleChange('genre', e.target.value)}
-                        >
-                            <option value="">Any</option>
-                            {genres?.map((g: any) => (
+                    {option('genre', 'Genre')}
+                    {kind === 'genre' && (
+                        <select className="filter-input" value={genre} onChange={e => setGenre(e.target.value)} autoFocus>
+                            <option value="">Choose a genre…</option>
+                            {genres.map(g => (
                                 <option key={g.value} value={g.value}>{g.value}</option>
                             ))}
                         </select>
-                    </div>
+                    )}
 
-                    <div className="filter-group">
-                        <label>Artist</label>
-                        <select
-                            value={filters.artist || ''}
-                            onChange={e => handleChange('artist', e.target.value)}
-                        >
-                            <option value="">Any</option>
-                            {artists?.map((a: any) => (
-                                <option key={a.id} value={a.id}>{a.name}</option>
-                            ))}
-                        </select>
-                    </div>
+                    {option('year', 'Release year')}
+                    {kind === 'year' && (
+                        <div className="filter-year-range">
+                            <input className="filter-input" type="number" placeholder="From (YYYY)" value={fromYear} onChange={e => setFromYear(e.target.value)} autoFocus />
+                            <span>to</span>
+                            <input className="filter-input" type="number" placeholder="To (optional)" value={toYear} onChange={e => setToYear(e.target.value)} />
+                        </div>
+                    )}
+
+                    <p className="muted filter-note">Sorting applies to "All albums" only; filtered lists use the server's own order.</p>
                 </div>
 
-                <div className="modal-footer">
-                    <button className="btn-secondary" onClick={() => setFilters({})}>Reset</button>
-                    <button className="btn-primary" onClick={() => onApply(filters)}>Apply Filters</button>
+                <div className="modal-actions">
+                    <button className="btn-secondary" onClick={() => onApply(NO_FILTER)}>Reset</button>
+                    <button className="btn-primary" onClick={apply} disabled={!canApply}>Apply</button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 }

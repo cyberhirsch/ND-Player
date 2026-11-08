@@ -1,16 +1,15 @@
+import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { chromeStorage } from './chromeStorage';
+import type { Credentials } from '../api/navidrome';
 
-interface SettingsState {
-    serverUrl: string;
-    username: string;
-    salt: string;
-    token: string;
+interface SettingsState extends Credentials {
     actions: {
-        setServerUrl: (url: string) => void;
-        setCredentials: (username: string, salt: string, token: string) => void;
-    }
+        /** Store a complete, already-tested connection in one step. */
+        setConnection: (creds: Credentials) => void;
+        disconnect: () => void;
+    };
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -21,15 +20,22 @@ export const useSettingsStore = create<SettingsState>()(
             salt: '',
             token: '',
             actions: {
-                setServerUrl: (url) => set({ serverUrl: url }),
-                setCredentials: (username, salt, token) => set({ username, salt, token }),
+                setConnection: ({ serverUrl, username, salt, token }) => set({ serverUrl, username, salt, token }),
+                disconnect: () => set({ serverUrl: '', username: '', salt: '', token: '' }),
             },
         }),
         {
             name: 'navidrome-settings',
             storage: createJSONStorage(() => chromeStorage),
+            partialize: ({ serverUrl, username, salt, token }) => ({ serverUrl, username, salt, token }),
         }
     )
 );
 
 export const useSettingsActions = () => useSettingsStore((state) => state.actions);
+
+const subscribeHydration = (onChange: () => void) => useSettingsStore.persist.onFinishHydration(onChange);
+const getHydrated = () => useSettingsStore.persist.hasHydrated();
+
+/** chrome.storage is async: until this is true, an empty store means "not loaded yet", not "logged out". */
+export const useSettingsHydrated = () => useSyncExternalStore(subscribeHydration, getHydrated);

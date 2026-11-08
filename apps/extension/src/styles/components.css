@@ -1,0 +1,787 @@
+/* Shared component styles added in 1.0.3. Loaded after layout.css. */
+
+/* ---------- Button resets (layout.css styles every <button> as an accent pill) ---------- */
+.heart-btn,
+.sort-option,
+.playlist-pick,
+.card-button,
+.row-btn,
+.chip-clear,
+.toast-close,
+.close-btn,
+button.album-art-container {
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+}
+
+.heart-btn:hover,
+.sort-option:hover,
+.playlist-pick:hover,
+.card-button:hover,
+.row-btn:hover,
+.chip-clear:hover,
+.toast-close:hover,
+.close-btn:hover,
+button.album-art-container:hover {
+  transform: none;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+  transform: none;
+}
+
+.btn-primary,
+.btn-secondary {
+  border-radius: 20px;
+  padding: 0.5rem 1.1rem;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.btn-primary {
+  background: var(--accent-color);
+  color: #000;
+  border: 1px solid var(--accent-color);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid #444;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--accent-color);
+}
+
+/* ---------- Generic page states ---------- */
+.page-status {
+  padding: 1rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.page-status.error,
+.empty-message.error {
+  color: #ff6b6b;
+}
+
+.muted {
+  color: var(--text-secondary);
+}
+
+.scroll-sentinel {
+  height: 1px;
+}
+
+/* ---------- Album cards: covers must stay clickable ---------- */
+.album-cover-link {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.album-info-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* The overlay is only a tint; it must not swallow clicks meant for the cover link beneath it. */
+.album-overlay {
+  pointer-events: none;
+}
+
+.album-overlay button {
+  pointer-events: auto;
+}
+
+/* ---------- Heart (favourite) buttons ---------- */
+.heart-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+.heart-btn:hover {
+  color: var(--text-primary);
+}
+
+.heart-btn.starred {
+  color: var(--accent-color);
+}
+
+.heart-btn:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+/* Corner badge on album and artist cards: always shown when starred, on hover otherwise. */
+.card-heart {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  opacity: 0;
+}
+
+.card-heart.starred {
+  opacity: 1;
+  color: var(--accent-color);
+}
+
+.album-card:hover .card-heart,
+.media-card:hover .card-heart,
+.artist-card:hover .card-heart,
+.card-heart:focus-visible {
+  opacity: 1;
+}
+
+.detail-actions .heart-btn {
+  width: 36px;
+  height: 36px;
+}
+
+/* ---------- Artists ---------- */
+.artist-grid.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.artist-grid.list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+.artist-card {
+  position: relative;
+  display: block;
+  padding: 1rem 2.6rem 1rem 1rem;
+  background: #333;
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+.artist-card:hover {
+  background: #3d3d3d;
+}
+
+.artist-card.list {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.artist-card-name {
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.artist-card-meta {
+  font-size: 0.8em;
+  color: #ccc;
+  flex-shrink: 0;
+}
+
+.artist-heart {
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.artist-card.list .artist-heart {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* ---------- Album list view ---------- */
+.album-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--text-secondary);
+}
+
+.album-table th {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #333;
+}
+
+.album-row td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #222;
+}
+
+.album-row-cover {
+  width: 60px;
+}
+
+.album-row-cover img {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: cover;
+  display: block;
+}
+
+.album-row-title {
+  color: var(--text-primary);
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.album-row-actions {
+  white-space: nowrap;
+}
+
+.row-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: var(--text-secondary);
+}
+
+.row-btn.accent {
+  color: var(--accent-color);
+}
+
+/* ---------- Filters and chips ---------- */
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: -0.5rem 0 1rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid #444;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.chip-clear {
+  font-size: 1.1em;
+  line-height: 1;
+  color: var(--text-secondary);
+}
+
+.toolbar-btn.filter-on {
+  color: var(--accent-color);
+}
+
+.sort-option {
+  width: 100%;
+  text-align: left;
+  display: flex;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.modal-header h3 {
+  margin: 0;
+}
+
+.close-btn {
+  display: inline-flex;
+  color: var(--text-secondary);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.filter-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+}
+
+.modal-content .filter-option input[type='radio'] {
+  width: auto;
+  margin: 0;
+  accent-color: var(--accent-color);
+}
+
+.modal-content input,
+.filter-input {
+  box-sizing: border-box;
+}
+
+.filter-input {
+  width: 100%;
+  margin: 0 0 0.25rem 1.6rem;
+  max-width: calc(100% - 1.6rem);
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.filter-year-range {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-year-range .filter-input {
+  margin: 0;
+  max-width: none;
+}
+
+.filter-year-range .filter-input:first-child {
+  margin-left: 1.6rem;
+}
+
+.modal-content .filter-year-range input {
+  margin-bottom: 0;
+}
+
+.filter-note {
+  font-size: 0.8rem;
+  margin: 0.25rem 0 0;
+}
+
+/* ---------- Add to playlist ---------- */
+.playlist-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+}
+
+.playlist-pick {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  text-align: left;
+}
+
+.playlist-pick:hover:not(:disabled) {
+  border-color: var(--accent-color);
+}
+
+/* ---------- Detail pages (album, artist, playlist) ---------- */
+.detail-page {
+  padding: 1rem;
+}
+
+.detail-header {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.detail-cover {
+  width: 200px;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.detail-cover.round {
+  border-radius: 50%;
+}
+
+.detail-cover.placeholder {
+  background: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-meta h1 {
+  margin: 0 0 0.25rem;
+}
+
+.detail-meta h2 {
+  margin: 0 0 0.5rem;
+  font-weight: normal;
+  color: var(--text-secondary);
+}
+
+.detail-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.track-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.track-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.track-row:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.track-number {
+  width: 36px;
+  text-align: center;
+  color: #888;
+  flex-shrink: 0;
+}
+
+.track-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.track-sub {
+  font-size: 0.9em;
+  color: #aaa;
+}
+
+.track-duration {
+  color: #888;
+  margin-right: 0.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Playlists page ---------- */
+.playlist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.playlist-card {
+  display: block;
+  padding: 1rem;
+  background: #333;
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.playlist-card img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.playlist-card-name {
+  margin-top: 0.5rem;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playlist-card-meta {
+  font-size: 0.8em;
+  color: #ccc;
+}
+
+/* ---------- Songs page ---------- */
+.songs-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.songs-header {
+  padding: 0 1rem;
+}
+
+.song-list-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 1rem;
+}
+
+.song-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.song-item {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.song-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.song-cover {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  margin-right: 12px;
+  object-fit: cover;
+  background: #333;
+  flex-shrink: 0;
+}
+
+.song-cover.missing {
+  visibility: hidden;
+}
+
+.song-item .song-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.song-title {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.song-artist {
+  font-size: 0.9em;
+  color: #aaa;
+}
+
+.song-duration {
+  color: #aaa;
+  font-variant-numeric: tabular-nums;
+}
+
+.load-more-btn {
+  margin: 20px auto;
+  display: block;
+  padding: 10px 20px;
+  background: #333;
+  color: var(--text-primary);
+  border-radius: 4px;
+}
+
+.load-more-btn:hover {
+  background: #444;
+  transform: none;
+}
+
+/* ---------- Settings ---------- */
+.settings-form {
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.settings-page .input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-page .input-group label {
+  color: #aaa;
+  font-size: 0.9em;
+}
+
+.settings-page .input-group input {
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #333;
+  background: #222;
+  color: var(--text-primary);
+  font-size: 1em;
+}
+
+.settings-page .input-group input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.save-btn {
+  padding: 12px;
+  background: var(--accent-color);
+  color: #000;
+  border-radius: 4px;
+  font-size: 1em;
+  margin-top: 10px;
+}
+
+.save-btn:hover {
+  transform: none;
+  filter: brightness(1.1);
+}
+
+.status-message {
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.status-message.success {
+  background: rgba(0, 255, 255, 0.1);
+  color: var(--accent-color);
+}
+
+.status-message.error {
+  background: rgba(255, 0, 0, 0.1);
+  color: #ff6b6b;
+}
+
+.settings-section {
+  max-width: 500px;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #333;
+}
+
+.settings-section h2 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+
+.version-info {
+  max-width: 500px;
+  margin-top: 30px;
+  color: #666;
+  font-size: 0.8em;
+  text-align: center;
+}
+
+/* ---------- Player bar ---------- */
+button.album-art-container {
+  display: block;
+}
+
+button.album-art-container:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+/* ---------- Home ---------- */
+.card-button {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+
+/* ---------- Playlist editor ---------- */
+.playlist-actions button.unsaved {
+  background: var(--accent-color);
+  color: #000;
+}
+
+/* ---------- Toasts ---------- */
+.toaster {
+  position: fixed;
+  right: 20px;
+  bottom: 110px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 380px;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #222;
+  border: 1px solid #333;
+  border-left: 3px solid var(--text-secondary);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  font-size: 0.9em;
+  color: var(--text-primary);
+}
+
+.toast span {
+  flex: 1;
+}
+
+.toast-success {
+  border-left-color: var(--accent-color);
+}
+
+.toast-error {
+  border-left-color: #ff6b6b;
+}
+
+.toast-close {
+  color: #aaa;
+  font-size: 1.1em;
+  line-height: 1;
+}
+
+/* ---------- Error boundary ---------- */
+.error-boundary {
+  padding: 2rem;
+  text-align: center;
+}
+
+.error-boundary-message {
+  color: #ff6b6b;
+  font-family: monospace;
+  margin-bottom: 1rem;
+}
