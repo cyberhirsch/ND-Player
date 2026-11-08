@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.2] - 2026-11-08
+
+### Fixed
+- **Album card hover button**: The play button on album covers turned Spotify green on hover because of a hardcoded `#1ed760`. It now stays on the theme accent colour and simply brightens.
+- **Truncated album titles**: Long album names and artist names were clipped mid-word with no ellipsis. Both now truncate cleanly with `...`.
+
+### Changed
+- The extension now lives in the ND Player monorepo under `apps/extension`, and is built and packaged by CI on every push.
+
 ## [1.0.1] - 2026-03-09
 
 ### Added
